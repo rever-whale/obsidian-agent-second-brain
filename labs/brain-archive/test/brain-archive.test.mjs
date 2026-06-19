@@ -5,9 +5,11 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  analyzeVaultGraph,
   applyPlan,
   parseDailyNote,
   planArchive,
+  renderGraphDoctorReport,
   renderPlanDiff
 } from "../src/brain-archive.mjs";
 
@@ -82,4 +84,26 @@ test("applies planned changes to a vault copy", async () => {
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+test("analyzes vault graph health", async () => {
+  const analysis = await analyzeVaultGraph(fixtureVault);
+
+  assert.equal(analysis.totalNotes, 6);
+  assert.equal(analysis.totalEdges, 4);
+  assert.deepEqual(analysis.orphanNotes, ["notes/orphan.md"]);
+  assert.deepEqual(analysis.brokenLinks, [
+    { from: "notes/frontend/cache-invalidation.md", target: "Missing Cache Note" }
+  ]);
+  assert.equal(analysis.hubs[0].file, "notes/frontend/react-query.md");
+});
+
+test("renders graph doctor report", async () => {
+  const analysis = await analyzeVaultGraph(fixtureVault);
+  const report = renderGraphDoctorReport(analysis);
+
+  assert.match(report, /Graph Doctor/);
+  assert.match(report, /Total notes: 6/);
+  assert.match(report, /Broken links: 1/);
+  assert.match(report, /notes\/orphan\.md/);
 });

@@ -103,6 +103,13 @@ Orphan Note
 brain graph doctor --since 30d
 ```
 
+로컬 lab에서는 같은 아이디어를 작은 fixture vault로 확인할 수 있다.
+
+```bash
+cd labs/brain-archive
+node src/brain-archive.mjs graph doctor --vault fixtures/vault
+```
+
 출력은 다음처럼 운영 판단에 바로 쓸 수 있어야 한다.
 
 ```text

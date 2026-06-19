@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SECTION_HEADING = /^##\s+(.+?)\s*$/;
+const WIKILINK = /!?\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 
 export function parseDailyNote(markdown) {
   const body = stripFrontmatter(markdown);
@@ -87,8 +88,94 @@ export async function applyPlan({ actions, vaultRoot }) {
   return changed;
 }
 
+export async function analyzeVaultGraph(vaultRoot) {
+  const files = await listMarkdownFiles(vaultRoot);
+  const noteByAlias = new Map();
+  for (const file of files) {
+    noteByAlias.set(slugify(path.basename(file, ".md")), file);
+
+    const markdown = await readFile(path.join(vaultRoot, file), "utf8");
+    const title = extractTitle(markdown);
+    if (title) noteByAlias.set(slugify(title), file);
+  }
+
+  const nodes = new Map(files.map((file) => [file, { inbound: 0, outbound: 0 }]));
+  const brokenLinks = [];
+  const edges = [];
+
+  for (const file of files) {
+    const markdown = await readFile(path.join(vaultRoot, file), "utf8");
+    const links = extractWikilinks(markdown);
+    for (const link of links) {
+      const target = noteByAlias.get(slugify(link));
+      nodes.get(file).outbound += 1;
+      if (target) {
+        nodes.get(target).inbound += 1;
+        edges.push({ from: file, to: target });
+      } else {
+        brokenLinks.push({ from: file, target: link });
+      }
+    }
+  }
+
+  const orphanNotes = [...nodes.entries()]
+    .filter(([file, degree]) => file.startsWith("notes/") && degree.inbound + degree.outbound === 0)
+    .map(([file]) => file);
+  const hubs = [...nodes.entries()]
+    .map(([file, degree]) => ({
+      file,
+      degree: degree.inbound + degree.outbound,
+      inbound: degree.inbound,
+      outbound: degree.outbound
+    }))
+    .filter((node) => node.degree > 0)
+    .sort((left, right) => right.degree - left.degree)
+    .slice(0, 5);
+
+  return {
+    totalNotes: files.length,
+    totalEdges: edges.length,
+    orphanNotes,
+    brokenLinks,
+    hubs
+  };
+}
+
+export function renderGraphDoctorReport(analysis) {
+  return [
+    "Graph Doctor",
+    "",
+    `Total notes: ${analysis.totalNotes}`,
+    `Edges: ${analysis.totalEdges}`,
+    `Orphan notes: ${analysis.orphanNotes.length}`,
+    `Broken links: ${analysis.brokenLinks.length}`,
+    "",
+    "Top hubs:",
+    ...formatHubLines(analysis.hubs),
+    "",
+    "Orphan note list:",
+    ...formatList(analysis.orphanNotes),
+    "",
+    "Broken link list:",
+    ...formatBrokenLinkLines(analysis.brokenLinks)
+  ].join("\n");
+}
+
 async function main(argv) {
-  const [command, dailyPath, ...rest] = argv;
+  const [command, subcommandOrPath, ...rest] = argv;
+  if (command === "graph" && subcommandOrPath === "doctor") {
+    const options = parseOptions(rest);
+    const vaultRoot = path.resolve(options.vault ?? ".");
+    const analysis = await analyzeVaultGraph(vaultRoot);
+    if (options.json) {
+      process.stdout.write(`${JSON.stringify(analysis, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${renderGraphDoctorReport(analysis)}\n`);
+    }
+    return 0;
+  }
+
+  const dailyPath = subcommandOrPath;
   if (command !== "archive" || !dailyPath) {
     printUsage();
     return 1;
@@ -123,6 +210,36 @@ function stripFrontmatter(markdown) {
   const end = markdown.indexOf("\n---", 4);
   if (end === -1) return markdown;
   return markdown.slice(end + 4);
+}
+
+async function listMarkdownFiles(root, current = "") {
+  const directory = path.join(root, current);
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".") || entry.name === "book") continue;
+    const relativePath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await listMarkdownFiles(root, relativePath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(normalizePath(relativePath));
+    }
+  }
+  return files.sort();
+}
+
+function extractWikilinks(markdown) {
+  const withoutCode = markdown.replace(/```[\s\S]*?```/g, "");
+  const links = [];
+  for (const match of withoutCode.matchAll(WIKILINK)) {
+    links.push(match[1].trim());
+  }
+  return links;
+}
+
+function extractTitle(markdown) {
+  const match = markdown.match(/^#\s+(.+?)\s*$/m);
+  return match?.[1].trim() ?? "";
 }
 
 function finalizeSection(section) {
@@ -285,6 +402,21 @@ function parseOptions(args) {
   return options;
 }
 
+function formatHubLines(hubs) {
+  if (hubs.length === 0) return ["- none"];
+  return hubs.map((hub) => `- ${hub.file} degree=${hub.degree} inbound=${hub.inbound} outbound=${hub.outbound}`);
+}
+
+function formatList(items) {
+  if (items.length === 0) return ["- none"];
+  return items.map((item) => `- ${item}`);
+}
+
+function formatBrokenLinkLines(items) {
+  if (items.length === 0) return ["- none"];
+  return items.map((item) => `- ${item.from} -> [[${item.target}]]`);
+}
+
 function firstMeaningfulLine(text) {
   return text.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "untitled";
 }
@@ -311,7 +443,12 @@ function normalizePath(value) {
 }
 
 function printUsage() {
-  process.stderr.write("Usage: brain-archive archive <daily-note.md> --vault <vault> [--dry-run|--apply|--json]\n");
+  process.stderr.write([
+    "Usage:",
+    "  brain-archive archive <daily-note.md> --vault <vault> [--dry-run|--apply|--json]",
+    "  brain-archive graph doctor --vault <vault> [--json]",
+    ""
+  ].join("\n"));
 }
 
 const isCli = fileURLToPath(import.meta.url) === process.argv[1];
