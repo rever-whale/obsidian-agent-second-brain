@@ -1,8 +1,5 @@
 # 학습 개요
 
-> Phase: REVIEW
-> Progress: 100%
-
 이 책은 Obsidian을 사람이 직접 정리하는 개인 지식 관리 앱으로 쓰는 방법을 다루지 않는다. 핵심 목표는 Obsidian vault를 로컬 Markdown 지식 DB로 보고, AI Agent가 Daily Note를 읽어 노트를 분리하고, 링크를 제안하고, MOC를 갱신하고, graph 품질을 점검하는 운영 시스템을 설계하는 것이다.
 
 사용자는 하루 동안 자유롭게 기록한다. 작성 시점에는 폴더, 태그, 링크, MOC를 고민하지 않는다. 정리의 책임은 Archive Agent가 맡는다. 다만 이 책은 완전 자동 수정을 전제로 하지 않는다. 개발자 독자가 실제로 신뢰할 수 있도록 `plan -> dry-run diff -> apply -> git commit -> report` 루프를 기본 안전장치로 삼는다.
