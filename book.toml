@@ -1,0 +1,12 @@
+[book]
+title = "Obsidian과 Agent로 만드는 Second Brain"
+authors = ["study-vault"]
+language = "ko"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+git-repository-url = "https://github.com/rever-whale/obsidian-agent-second-brain"
+site-url = "/obsidian-agent-second-brain/"
