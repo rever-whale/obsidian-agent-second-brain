@@ -82,7 +82,7 @@ SORT created DESC
 ```
 ````
 
-Obsidian Bases를 쓰는 vault라면 `.base` 파일이나 embedded base로 비슷한 view를 만들 수 있다. Agent는 curated MOC와 query MOC를 구분해야 한다. curated MOC는 narrative navigation이고, query MOC는 current state dashboard다.
+Obsidian Bases를 쓰는 vault라면 `.base` 파일이나 embedded base로 비슷한 view를 만들 수 있다. Agent는 curated MOC와 query MOC를 구분해야 한다. curated MOC는 서사를 가진 탐색 지도이고, query MOC는 현재 상태를 보여주는 dashboard다.
 
 ## MOC 갱신 알고리즘
 

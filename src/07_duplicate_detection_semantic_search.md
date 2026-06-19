@@ -1,4 +1,4 @@
-# 7. 중복 탐지와 Semantic Search
+# 7. 중복 탐지와 semantic search
 
 중복 탐지는 파일명 일치만으로 충분하지 않다. 개발자 vault에서는 같은 개념이 다른 이름으로 반복된다. 예를 들어 `RSC cache`, `React cache()`, `Server Component cache scope`는 같은 지식 영역에 속할 수 있다.
 
@@ -8,13 +8,13 @@ Agent는 세 가지 검색을 조합한다.
 - graph search: 이미 연결된 주변 노트
 - semantic search: embedding 기반 유사도
 
-Semantic search는 의미가 가까운 노트를 찾는 데 강하지만, 항상 병합 근거가 되지는 않는다. 유사도 높은 노트가 있으면 Agent는 `merge`, `append`, `link`, `ignore` 중 하나를 제안해야 한다.
+semantic search는 의미가 가까운 노트를 찾는 데 강하지만, 항상 병합 근거가 되지는 않는다. 유사도 높은 노트가 있으면 Agent는 `merge`, `append`, `link`, `ignore` 중 하나를 제안해야 한다.
 
 ## 세 검색의 역할 분담
 
 Lexical search는 정확한 이름을 찾는 데 강하다. `React Query`, `invalidateQueries`, `RSC cache`처럼 명시적인 단어가 있을 때 빠르고 설명 가능하다. 하지만 표현이 달라지면 놓친다.
 
-Semantic search는 표현이 다른 유사 개념을 찾는 데 강하다. `server state invalidation`과 `React Query cache refresh`처럼 단어가 달라도 가까운 후보를 찾을 수 있다. 하지만 "가깝다"가 곧 "같다"는 뜻은 아니다.
+semantic search는 표현이 다른 유사 개념을 찾는 데 강하다. `server state invalidation`과 `React Query cache refresh`처럼 단어가 달라도 가까운 후보를 찾을 수 있다. 하지만 "가깝다"가 곧 "같다"는 뜻은 아니다.
 
 Graph search는 이미 vault가 알고 있는 문맥을 사용한다. 후보 노트가 같은 MOC 아래에 있거나, 같은 project note에서 자주 참조되거나, 같은 hub 주변에 있으면 관련 가능성이 높다.
 

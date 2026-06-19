@@ -22,7 +22,7 @@ Duplicate Detector
   ↓
 Link/MOC Planner
   ↓
-Dry-run Diff
+dry-run diff
   ↓
 Apply
   ↓
@@ -45,7 +45,7 @@ Duplicate Detector는 기존 vault와 후보 노트를 비교한다. lexical sea
 
 Link/MOC Planner는 새 노트와 기존 노트 사이의 연결 후보를 만든다. 이 단계는 관련 링크를 많이 붙이는 것이 아니라, 탐색 가치가 있는 링크를 고르는 단계다.
 
-Dry-run Diff는 계획을 실제 patch로 바꾼다. 사용자가 검토할 수 있는 unified diff가 이상적이다. 여기서부터는 LLM 출력이 아니라 deterministic patch generator가 맡는 편이 안전하다.
+dry-run diff는 계획을 실제 patch로 바꾼다. 사용자가 검토할 수 있는 unified diff가 이상적이다. 여기서부터는 LLM 출력이 아니라 deterministic patch generator가 맡는 편이 안전하다.
 
 Apply는 파일을 수정한다. Apply 이후에는 validator가 SUMMARY 링크, broken wikilink, properties parse, duplicate section을 검사한다.
 
@@ -132,8 +132,8 @@ node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fi
 
 - Parser는 section만 추출하고 파일을 수정하지 않는다.
 - Planner는 action과 target path를 만든다.
-- Dry-run은 실제 파일 변경 없이 diff를 출력한다.
-- Apply는 명시적으로 `--apply`를 줄 때만 파일을 쓴다.
+- dry-run은 실제 파일 변경 없이 diff를 출력한다.
+- apply는 명시적으로 `--apply`를 줄 때만 파일을 쓴다.
 
 실제 Agent를 만들 때는 이 lab에 semantic search, graph doctor, confidence scoring, approval queue를 추가하는 방향으로 확장한다.
 

@@ -108,7 +108,7 @@ https://tanstack.com/query/latest/docs/framework/react/guides/query-invalidation
 React Query invalidateQueries의 matching semantics를 다시 확인할 자료.
 ```
 
-## Anti-pattern
+## 안티패턴
 
 가장 흔한 anti-pattern은 Daily Note를 이미 정리된 문서처럼 쓰는 것이다. Daily Note 안에서 너무 많은 링크와 nested heading을 만들면 archive 단계에서 block 경계가 흐려진다. Daily Note는 최종 문서가 아니라 capture log다.
 

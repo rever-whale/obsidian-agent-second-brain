@@ -88,7 +88,7 @@ Planner는 다음 action을 만든다.
 
 ## Step 3. Diff
 
-Dry-run diff는 다음처럼 보여줄 수 있다.
+dry-run diff는 다음처럼 보여줄 수 있다.
 
 ```diff
 diff --git a/questions/rsc-cache-scope.md b/questions/rsc-cache-scope.md

@@ -1,4 +1,4 @@
-# 11. Dry-run, Diff, Rollback
+# 11. dry-run, diff, rollback
 
 Agent가 vault를 직접 고치는 순간 운영 문제가 생긴다. 잘못된 병합, 과도한 링크, MOC 재정렬, properties 손상은 사용자의 신뢰를 빠르게 무너뜨린다. 그래서 기본 실행은 dry-run이어야 한다.
 
@@ -12,11 +12,11 @@ brain archive today --apply --commit
 
 `--dry-run`은 plan과 diff만 만든다. `--apply`는 파일을 수정하지만 Git commit은 만들지 않는다. `--commit`은 적용 결과를 되돌릴 수 있는 단위로 저장한다.
 
-## Dry-run이 기본값이어야 하는 이유
+## dry-run이 기본값이어야 하는 이유
 
 개인 vault는 코드 저장소보다 모호하다. 코드에서는 테스트가 실패하면 변경이 잘못되었음을 빠르게 알 수 있다. 하지만 지식 vault에서는 잘못된 링크나 부적절한 병합이 몇 주 뒤에야 드러난다. 따라서 archive 자동화의 기본값은 보수적이어야 한다.
 
-Dry-run은 단순 preview가 아니다. Agent와 사용자 사이의 계약이다.
+dry-run은 단순 preview가 아니다. Agent와 사용자 사이의 계약이다.
 
 ```text
 Agent:

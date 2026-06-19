@@ -15,7 +15,7 @@
 | kartikkabadi/obsidian-vault-graph | vault graph CLI, backlinks, centrality, hygiene |
 | Data-Wise/obsidian-cli-ops | PageRank, centrality, orphan/hub detection |
 | blacksmithgu/obsidian-dataview | Markdown data index와 query dashboard |
-| khoj-ai/khoj | AI second brain, custom agents, document search/RAG |
+| khoj-ai/khoj | AI Second Brain, custom agents, document search/RAG |
 
 ## 출처
 

@@ -13,17 +13,17 @@
 - [4. Archive Agent 파이프라인](./04_archive_agent_pipeline.md)
 - [5. Markdown AST, Properties, Wikilink 파싱](./05_markdown_properties_wikilink_parsing.md)
 - [6. 노트 타입 분류와 생성 계획](./06_note_classification_and_planning.md)
-- [7. 중복 탐지와 Semantic Search](./07_duplicate_detection_semantic_search.md)
+- [7. 중복 탐지와 semantic search](./07_duplicate_detection_semantic_search.md)
 
 # Part 3. 그래프를 정제하는 자동화
 
-- [8. 링크 추천과 Backlink 보강](./08_link_suggestion_backlinks.md)
+- [8. 링크 추천과 backlink 보강](./08_link_suggestion_backlinks.md)
 - [9. MOC 자동 생성과 갱신 전략](./09_moc_generation_strategy.md)
-- [10. Graph 품질 지표와 리포트](./10_graph_quality_metrics.md)
+- [10. graph 품질 지표와 리포트](./10_graph_quality_metrics.md)
 
 # Part 4. 안전한 운영 루프
 
-- [11. Dry-run, Diff, Rollback](./11_dry_run_diff_rollback.md)
+- [11. dry-run, diff, rollback](./11_dry_run_diff_rollback.md)
 - [12. Weekly Review와 Research Queue](./12_weekly_review_research_queue.md)
 - [13. GitHub, Slack, Notion Ingest 확장](./13_external_ingest_extensions.md)
 - [14. 사례 연구: 개발자의 하루를 아카이빙하기](./14_case_study_developer_day.md)

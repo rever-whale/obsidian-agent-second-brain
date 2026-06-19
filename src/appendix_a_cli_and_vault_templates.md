@@ -33,7 +33,7 @@ brain graph doctor
 
 ## Lab CLI
 
-이 책의 local lab은 다음 경로에 있다.
+이 책의 로컬 lab은 다음 경로에 있다.
 
 ```text
 labs/brain-archive/

@@ -14,7 +14,7 @@ brain ingest url https://example.com/article
 
 ## GitHub repository ingest
 
-GitHub repository ingest는 source tree 전체 요약이 아니다. 개발자 second brain 관점에서는 architecture term, recurring module, public API, design decision, issue pattern을 추출하는 것이 더 중요하다.
+GitHub repository ingest는 source tree 전체 요약이 아니다. 개발자 Second Brain 관점에서는 architecture term, recurring module, public API, design decision, issue pattern을 추출하는 것이 더 중요하다.
 
 ## Ingest는 archive와 같은 pipeline을 써야 한다
 
@@ -46,7 +46,7 @@ archive_status: pending
 
 ## GitHub PR ingest
 
-PR은 개발자 second brain에 특히 좋은 입력이다. 코드 변경보다 중요한 것은 의사결정과 트레이드오프다.
+PR은 개발자 Second Brain에 특히 좋은 입력이다. 코드 변경보다 중요한 것은 의사결정과 트레이드오프다.
 
 Agent는 PR에서 다음을 추출한다.
 
@@ -83,7 +83,7 @@ Archive Agent는 이 raw note에서 `Decision`, `Project`, `Question` 후보를 
 
 ## Slack/Notion ingest
 
-Slack과 Notion은 noise가 많다. 모든 메시지를 vault에 넣으면 second brain이 아니라 archive dump가 된다. ingest 기준을 엄격히 둔다.
+Slack과 Notion은 noise가 많다. 모든 메시지를 vault에 넣으면 Second Brain이 아니라 archive dump가 된다. ingest 기준을 엄격히 둔다.
 
 수집할 가치가 있는 항목:
 
