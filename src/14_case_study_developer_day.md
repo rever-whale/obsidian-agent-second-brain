@@ -29,6 +29,148 @@ Archive Agent는 세 가지 작업을 계획한다.
 
 그 다음 related link 후보, MOC 갱신 후보, graph quality report를 만든다. 이 장에서는 dry-run diff와 apply report를 실제 Markdown diff 형태로 제시한다.
 
+## Step 1. Parse
+
+Parser는 입력을 세 block으로 나눈다.
+
+```json
+[
+  {
+    "heading": "Insight",
+    "text": "React Query invalidateQueries는 생각보다 범위가 넓다."
+  },
+  {
+    "heading": "Project",
+    "text": "검색 API latency 조사. 원인 후보는 Redis miss와 DB index."
+  },
+  {
+    "heading": "Question",
+    "text": "Server Component에서 cache 범위는 어디까지인가?"
+  }
+]
+```
+
+이 단계에서는 아직 파일을 만들지 않는다. parse 결과가 안정적이어야 이후 단계의 판단을 재현할 수 있다.
+
+## Step 2. Plan
+
+Planner는 다음 action을 만든다.
+
+```json
+{
+  "source": "daily/2026-06-19.md",
+  "actions": [
+    {
+      "kind": "create_or_merge",
+      "target": "notes/frontend/react-query-invalidation.md",
+      "type": "concept",
+      "confidence": 0.82,
+      "risk": "medium"
+    },
+    {
+      "kind": "append_section",
+      "target": "projects/search-api.md",
+      "heading": "2026-06-19 Latency Investigation",
+      "confidence": 0.9,
+      "risk": "medium"
+    },
+    {
+      "kind": "create_question",
+      "target": "questions/rsc-cache-scope.md",
+      "confidence": 0.86,
+      "risk": "low"
+    }
+  ]
+}
+```
+
+`create_question`은 low risk지만, project note append와 concept note 생성은 기존 구조에 영향을 주므로 dry-run 승인 대상으로 둔다.
+
+## Step 3. Diff
+
+Dry-run diff는 다음처럼 보여줄 수 있다.
+
+```diff
+diff --git a/questions/rsc-cache-scope.md b/questions/rsc-cache-scope.md
+new file mode 100644
+--- /dev/null
++++ b/questions/rsc-cache-scope.md
+@@
++---
++type: question
++status: open
++created: 2026-06-19
++source:
++  - "[[2026-06-19]]"
++---
++
++# RSC Cache Scope
++
++## Question
++
++Server Component에서 `cache()`의 범위는 어디까지인가?
++
++## Research Notes
++
++- React Server Component request lifecycle 확인 필요
++- framework-level cache와 React `cache()`의 차이 확인 필요
++
++## Related
++
++- [[React Server Components]]
++- [[Server State]]
++- [[Cache]]
+```
+
+```diff
+diff --git a/projects/search-api.md b/projects/search-api.md
+@@
++## 2026-06-19 Latency Investigation
++
++Source: [[2026-06-19]]
++
++검색 API p95 latency 상승 원인 후보:
++
++- Redis miss 증가
++- DB index 부재 또는 selectivity 저하
++
++Next:
++
++- Redis hit ratio 확인
++- product search query의 execution plan 확인
+```
+
+## Step 4. Report
+
+적용 후 report는 다음처럼 작성한다.
+
+```text
+Archive Result: 2026-06-19
+
+Created:
+- questions/rsc-cache-scope.md
+- notes/frontend/react-query-invalidation.md
+
+Updated:
+- projects/search-api.md
+- moc/frontend.md
+
+Links added:
+- [[React Query]]
+- [[Server State]]
+- [[Cache Invalidation]]
+- [[React Server Components]]
+
+Manual review:
+- Existing note [[Cache]] is too broad. Suggested split: Browser Cache, Server State Cache, React Cache.
+
+Graph:
+- orphan ratio: 8.1% -> 7.9%
+- broken links: unchanged
+```
+
+이 report는 사용자가 "오늘 Agent가 무엇을 했는가"를 한눈에 확인하게 한다. 좋은 report는 변경량을 자랑하지 않고, 다음 판단에 필요한 정보를 준다.
+
 ## 출처
 
 - [Obsidian Help: Internal links](https://obsidian.md/help/links)
