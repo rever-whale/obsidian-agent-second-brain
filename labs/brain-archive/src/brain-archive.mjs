@@ -5,6 +5,22 @@ import { fileURLToPath } from "node:url";
 
 const SECTION_HEADING = /^##\s+(.+?)\s*$/;
 const WIKILINK = /!?\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
+const STOP_WORDS = new Set([
+  "and",
+  "for",
+  "from",
+  "into",
+  "the",
+  "this",
+  "that",
+  "with",
+  "about",
+  "note",
+  "source",
+  "related",
+  "status",
+  "type"
+]);
 
 export function parseDailyNote(markdown) {
   const body = stripFrontmatter(markdown);
@@ -161,6 +177,56 @@ export function renderGraphDoctorReport(analysis) {
   ].join("\n");
 }
 
+export async function findSimilarNotes({ vaultRoot, queryPath, queryText, limit = 5 }) {
+  if (!queryPath && !queryText) {
+    throw new Error("findSimilarNotes requires queryPath or queryText");
+  }
+
+  const files = await listMarkdownFiles(vaultRoot);
+  const resolvedQueryPath = queryPath ? path.resolve(queryPath) : "";
+  const queryRelativePath = resolvedQueryPath
+    ? normalizePath(path.relative(vaultRoot, resolvedQueryPath))
+    : "";
+  const sourceText = queryText ?? await readFile(resolvedQueryPath, "utf8");
+  const queryVector = vectorize(sourceText);
+
+  const candidates = [];
+  for (const file of files) {
+    if (file === queryRelativePath) continue;
+
+    const markdown = await readFile(path.join(vaultRoot, file), "utf8");
+    const score = cosineSimilarity(queryVector, vectorize(markdown));
+    if (score <= 0) continue;
+
+    candidates.push({
+      file,
+      score: Number(score.toFixed(4)),
+      title: extractTitle(markdown) || toTitle(path.basename(file, ".md"))
+    });
+  }
+
+  candidates.sort((left, right) => {
+    if (right.score !== left.score) return right.score - left.score;
+    return left.file.localeCompare(right.file);
+  });
+
+  return {
+    query: queryRelativePath || "inline-query",
+    candidates: candidates.slice(0, limit)
+  };
+}
+
+export function renderSimilarNotesReport(result) {
+  return [
+    "Similar Notes",
+    "",
+    `Query: ${result.query}`,
+    "",
+    "Candidates:",
+    ...formatSimilarLines(result.candidates)
+  ].join("\n");
+}
+
 async function main(argv) {
   const [command, subcommandOrPath, ...rest] = argv;
   if (command === "graph" && subcommandOrPath === "doctor") {
@@ -171,6 +237,29 @@ async function main(argv) {
       process.stdout.write(`${JSON.stringify(analysis, null, 2)}\n`);
     } else {
       process.stdout.write(`${renderGraphDoctorReport(analysis)}\n`);
+    }
+    return 0;
+  }
+
+  if (command === "search" && subcommandOrPath === "similar") {
+    const [queryArg, ...optionArgs] = rest;
+    if (!queryArg) {
+      printUsage();
+      return 1;
+    }
+
+    const options = parseOptions(optionArgs);
+    const vaultRoot = path.resolve(options.vault ?? ".");
+    const result = await findSimilarNotes({
+      vaultRoot,
+      queryPath: path.resolve(queryArg),
+      limit: options.limit ?? 5
+    });
+
+    if (options.json) {
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    } else {
+      process.stdout.write(`${renderSimilarNotesReport(result)}\n`);
     }
     return 0;
   }
@@ -240,6 +329,42 @@ function extractWikilinks(markdown) {
 function extractTitle(markdown) {
   const match = markdown.match(/^#\s+(.+?)\s*$/m);
   return match?.[1].trim() ?? "";
+}
+
+function vectorize(markdown) {
+  const vector = new Map();
+  for (const token of tokenize(markdown)) {
+    vector.set(token, (vector.get(token) ?? 0) + 1);
+  }
+  return vector;
+}
+
+function tokenize(markdown) {
+  return stripFrontmatter(markdown)
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(WIKILINK, " $1 ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .normalize("NFKD")
+    .toLowerCase()
+    .split(/[^\p{Letter}\p{Number}]+/u)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
+}
+
+function cosineSimilarity(left, right) {
+  let dotProduct = 0;
+  let leftNorm = 0;
+  let rightNorm = 0;
+
+  for (const count of left.values()) leftNorm += count * count;
+  for (const count of right.values()) rightNorm += count * count;
+  if (leftNorm === 0 || rightNorm === 0) return 0;
+
+  for (const [token, leftCount] of left.entries()) {
+    dotProduct += leftCount * (right.get(token) ?? 0);
+  }
+
+  return dotProduct / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm));
 }
 
 function finalizeSection(section) {
@@ -397,6 +522,9 @@ function parseOptions(args) {
       options.apply = true;
     } else if (arg === "--dry-run") {
       options.dryRun = true;
+    } else if (arg === "--limit") {
+      options.limit = Number.parseInt(args[index + 1], 10);
+      index += 1;
     }
   }
   return options;
@@ -415,6 +543,11 @@ function formatList(items) {
 function formatBrokenLinkLines(items) {
   if (items.length === 0) return ["- none"];
   return items.map((item) => `- ${item.from} -> [[${item.target}]]`);
+}
+
+function formatSimilarLines(items) {
+  if (items.length === 0) return ["- none"];
+  return items.map((item) => `- ${item.file} score=${item.score.toFixed(4)} title="${item.title}"`);
 }
 
 function firstMeaningfulLine(text) {
@@ -447,6 +580,7 @@ function printUsage() {
     "Usage:",
     "  brain-archive archive <daily-note.md> --vault <vault> [--dry-run|--apply|--json]",
     "  brain-archive graph doctor --vault <vault> [--json]",
+    "  brain-archive search similar <note.md> --vault <vault> [--limit <n>|--json]",
     ""
   ].join("\n"));
 }

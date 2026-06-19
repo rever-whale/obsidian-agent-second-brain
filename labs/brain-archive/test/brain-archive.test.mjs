@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 import {
   analyzeVaultGraph,
   applyPlan,
+  findSimilarNotes,
   parseDailyNote,
   planArchive,
   renderGraphDoctorReport,
-  renderPlanDiff
+  renderPlanDiff,
+  renderSimilarNotesReport
 } from "../src/brain-archive.mjs";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -106,4 +108,32 @@ test("renders graph doctor report", async () => {
   assert.match(report, /Total notes: 6/);
   assert.match(report, /Broken links: 1/);
   assert.match(report, /notes\/orphan\.md/);
+});
+
+test("finds similar notes with lexical vectors", async () => {
+  const result = await findSimilarNotes({
+    vaultRoot: fixtureVault,
+    queryPath: path.join(fixtureVault, "notes/frontend/react-query.md"),
+    limit: 2
+  });
+
+  assert.equal(result.query, "notes/frontend/react-query.md");
+  assert.deepEqual(result.candidates.map((candidate) => candidate.file), [
+    "notes/frontend/server-state.md",
+    "notes/frontend/cache-invalidation.md"
+  ]);
+  assert.ok(result.candidates[0].score > result.candidates[1].score);
+});
+
+test("renders similar note report", async () => {
+  const result = await findSimilarNotes({
+    vaultRoot: fixtureVault,
+    queryPath: path.join(fixtureVault, "notes/frontend/react-query.md"),
+    limit: 1
+  });
+  const report = renderSimilarNotesReport(result);
+
+  assert.match(report, /Similar Notes/);
+  assert.match(report, /Query: notes\/frontend\/react-query\.md/);
+  assert.match(report, /notes\/frontend\/server-state\.md/);
 });

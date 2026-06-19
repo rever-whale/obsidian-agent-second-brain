@@ -48,9 +48,11 @@ node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fi
 node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fixtures/vault --json
 node src/brain-archive.mjs graph doctor --vault fixtures/vault
 node src/brain-archive.mjs graph doctor --vault fixtures/vault --json
+node src/brain-archive.mjs search similar fixtures/vault/notes/frontend/react-query.md --vault fixtures/vault --limit 2
+node src/brain-archive.mjs search similar fixtures/vault/notes/frontend/react-query.md --vault fixtures/vault --limit 2 --json
 ```
 
-`--dry-run`은 diff만 출력한다. archive 명령의 `--json`은 action plan을 JSON으로 출력한다. graph doctor 명령의 `--json`은 graph 분석 결과를 JSON으로 출력한다. `--apply`는 실제 파일을 쓴다.
+`--dry-run`은 diff만 출력한다. archive 명령의 `--json`은 action plan을 JSON으로 출력한다. graph doctor 명령의 `--json`은 graph 분석 결과를 JSON으로 출력한다. search similar 명령의 `--json`은 유사 노트 후보를 JSON으로 출력한다. `--apply`는 실제 파일을 쓴다.
 
 ## 기본 note properties
 

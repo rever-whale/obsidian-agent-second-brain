@@ -75,8 +75,32 @@ Duplicate candidates for "RSC cache scope"
 
 사용자가 선택하면 Agent는 선택 결과를 다음 archive의 few-shot example처럼 활용할 수 있다. 개인 vault에서는 사용자의 판단 자체가 가장 좋은 training signal이다.
 
+## Lab: 유사 노트 후보 찾기
+
+이 책의 로컬 lab은 외부 embedding 모델을 호출하지 않는다. 대신 Markdown 본문을 토큰화하고, bag-of-words 벡터와 cosine similarity로 유사 후보를 찾는다. production semantic search를 대체하기 위한 구현이 아니라, duplicate detector가 어디에 붙는지 확인하기 위한 작은 대역이다.
+
+```bash
+cd labs/brain-archive
+node src/brain-archive.mjs search similar fixtures/vault/notes/frontend/react-query.md --vault fixtures/vault --limit 2
+```
+
+예상 출력은 다음과 같은 형태다.
+
+```text
+Similar Notes
+
+Query: notes/frontend/react-query.md
+
+Candidates:
+- notes/frontend/server-state.md score=0.8165 title="Server State"
+- notes/frontend/cache-invalidation.md score=0.7217 title="Cache Invalidation"
+```
+
+실제 Agent에서는 같은 인터페이스 뒤쪽을 embedding index로 교체한다. 중요한 경계는 검색 결과가 바로 merge가 아니라 candidate review로 넘어간다는 점이다.
+
 ## 출처
 
 - [brianpetro/obsidian-smart-connections](https://github.com/brianpetro/obsidian-smart-connections)
 - [khoj-ai/khoj](https://github.com/khoj-ai/khoj)
 - [SGPT: GPT Sentence Embeddings for Semantic Search](https://arxiv.org/abs/2202.08904)
+- [Local lab: brain-archive](../labs/brain-archive/README.md)
