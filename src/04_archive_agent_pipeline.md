@@ -118,8 +118,28 @@ Archive plan은 사람이 읽을 수 있으면서도 기계가 적용할 수 있
 
 이 정책은 보수적으로 보일 수 있지만, 개인 vault에서는 신뢰가 생산성보다 먼저다. 사용자가 몇 주 동안 report와 diff를 보고 Agent의 판단을 신뢰하게 되면 자동 적용 범위를 넓힐 수 있다.
 
+## Lab: 작은 Archive Agent 실행하기
+
+이 책의 `labs/brain-archive`에는 이 파이프라인의 축소 구현이 들어 있다. 외부 LLM이나 embedding 없이 Daily Note의 H2 section을 읽고, action plan을 만들고, dry-run diff를 출력한다.
+
+```bash
+cd labs/brain-archive
+npm test
+node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fixtures/vault --dry-run
+```
+
+이 lab은 production 구현이 아니다. 목적은 구조를 눈으로 확인하는 것이다. 특히 다음 경계를 코드로 확인할 수 있다.
+
+- Parser는 section만 추출하고 파일을 수정하지 않는다.
+- Planner는 action과 target path를 만든다.
+- Dry-run은 실제 파일 변경 없이 diff를 출력한다.
+- Apply는 명시적으로 `--apply`를 줄 때만 파일을 쓴다.
+
+실제 Agent를 만들 때는 이 lab에 semantic search, graph doctor, confidence scoring, approval queue를 추가하는 방향으로 확장한다.
+
 ## 출처
 
 - [jwhonce/obsidian-cli](https://github.com/jwhonce/obsidian-cli)
 - [coddingtonbear/obsidian-local-rest-api](https://github.com/coddingtonbear/obsidian-local-rest-api)
 - [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills)
+- [Local lab: brain-archive](../labs/brain-archive/README.md)

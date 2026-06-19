@@ -171,8 +171,34 @@ Graph:
 
 이 report는 사용자가 "오늘 Agent가 무엇을 했는가"를 한눈에 확인하게 한다. 좋은 report는 변경량을 자랑하지 않고, 다음 판단에 필요한 정보를 준다.
 
+## Lab으로 재현하기
+
+이 사례는 `labs/brain-archive` fixture로 재현할 수 있다.
+
+```bash
+cd labs/brain-archive
+node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fixtures/vault --dry-run
+```
+
+출력은 세 파일에 대한 diff를 만든다.
+
+- `notes/frontend/react-query-invalidation.md`
+- `projects/search-api.md`
+- `questions/rsc-cache-scope.md`
+
+여기서 중요한 것은 diff가 "정답"이라는 뜻이 아니라는 점이다. diff는 Agent의 제안이다. 사용자는 이 제안이 맞는지 보고, 필요하면 target path나 제목, related link를 조정한다. Agent 기반 Second Brain의 첫 단계는 완전 자동화가 아니라 검토 가능한 자동화다.
+
+테스트도 함께 실행한다.
+
+```bash
+npm test
+```
+
+테스트는 parser, planner, dry-run diff, apply 동작을 확인한다. 실무 구현에서는 여기에 broken link 검사, properties schema 검사, graph metric regression test를 추가한다.
+
 ## 출처
 
 - [Obsidian Help: Internal links](https://obsidian.md/help/links)
 - [Obsidian Help: Properties](https://obsidian.md/help/properties)
 - [coddingtonbear/obsidian-local-rest-api](https://github.com/coddingtonbear/obsidian-local-rest-api)
+- [Local lab: brain-archive](../labs/brain-archive/README.md)
