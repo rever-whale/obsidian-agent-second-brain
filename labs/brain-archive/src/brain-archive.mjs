@@ -104,6 +104,21 @@ export async function applyPlan({ actions, vaultRoot }) {
   return changed;
 }
 
+export async function markDailyNoteArchived({ sourcePath, archivedAt = new Date() }) {
+  const markdown = await readFile(sourcePath, "utf8");
+  const archivedDate = archivedAt.toISOString().slice(0, 10);
+  const next = updateFrontmatter(markdown, {
+    archive_status: "archived",
+    archived_at: archivedDate
+  });
+  await writeFile(sourcePath, next, "utf8");
+  return {
+    source: normalizePath(sourcePath),
+    archiveStatus: "archived",
+    archivedAt: archivedDate
+  };
+}
+
 export async function analyzeVaultGraph(vaultRoot) {
   const files = await listMarkdownFiles(vaultRoot);
   const noteByAlias = new Map();
@@ -284,8 +299,10 @@ async function main(argv) {
 
   if (options.apply) {
     const changed = await applyPlan({ actions, vaultRoot });
+    const archiveState = await markDailyNoteArchived({ sourcePath });
     process.stdout.write(`Applied ${changed.length} change(s):\n`);
     for (const file of changed) process.stdout.write(`- ${file}\n`);
+    process.stdout.write(`Daily note status: ${archiveState.archiveStatus} (${archiveState.archivedAt})\n`);
     return 0;
   }
 
@@ -299,6 +316,47 @@ function stripFrontmatter(markdown) {
   const end = markdown.indexOf("\n---", 4);
   if (end === -1) return markdown;
   return markdown.slice(end + 4);
+}
+
+function updateFrontmatter(markdown, values) {
+  if (!markdown.startsWith("---\n")) {
+    const frontmatter = renderFrontmatter(values);
+    return `---\n${frontmatter}---\n\n${markdown}`;
+  }
+
+  const end = markdown.indexOf("\n---", 4);
+  if (end === -1) {
+    const frontmatter = renderFrontmatter(values);
+    return `---\n${frontmatter}---\n\n${markdown}`;
+  }
+
+  const frontmatter = markdown.slice(4, end).replace(/^\n/, "");
+  const body = markdown.slice(end);
+  const nextFrontmatter = upsertFrontmatterValues(frontmatter, values);
+  return `---\n${nextFrontmatter}${body}`;
+}
+
+function upsertFrontmatterValues(frontmatter, values) {
+  const lines = frontmatter.split(/\r?\n/);
+  const seen = new Set();
+  const next = lines.map((line) => {
+    const match = line.match(/^([A-Za-z0-9_-]+):/);
+    if (!match) return line;
+    const key = match[1];
+    if (!(key in values)) return line;
+    seen.add(key);
+    return `${key}: ${values[key]}`;
+  });
+
+  for (const [key, value] of Object.entries(values)) {
+    if (!seen.has(key)) next.push(`${key}: ${value}`);
+  }
+
+  return `${next.join("\n").replace(/\s*$/, "\n")}`;
+}
+
+function renderFrontmatter(values) {
+  return Object.entries(values).map(([key, value]) => `${key}: ${value}`).join("\n") + "\n";
 }
 
 async function listMarkdownFiles(root, current = "") {

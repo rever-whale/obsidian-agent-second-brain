@@ -113,6 +113,8 @@ EOF
 - `archive_status`: 오늘 노트가 아직 처리되지 않았다는 신호
 - `source`: 나중에 생성된 노트가 어떤 Daily Note에서 왔는지 추적하는 자리. 템플릿에서는 비워 두고, Agent가 만든 노트에는 `[[2026-06-22]]` 같은 값이 들어간다.
 
+`archive_status`는 archive automation의 작은 상태 플래그다. 처음 Daily Note를 만들 때는 `pending`으로 시작한다. `dry-run`은 파일을 쓰지 않으므로 상태를 바꾸지 않는다. `--apply` 또는 dashboard의 `Apply`가 성공하면 lab이 Daily Note frontmatter를 `archive_status: archived`로 바꾸고 `archived_at` 날짜를 추가한다.
+
 ## Step 3. 오늘의 Daily Note 쓰기
 
 오늘 파일을 하나 만든다. 날짜는 필요하면 바꿔도 된다.
@@ -297,6 +299,18 @@ Applied 3 change(s):
 - notes/frontend/react-query-invalidation.md
 - projects/search-api.md
 - questions/rsc-cache-scope.md
+Daily note status: archived (2026-06-22)
+```
+
+이때 원본 Daily Note의 frontmatter도 다음처럼 바뀐다.
+
+```yaml
+---
+type: daily
+date: 2026-06-22
+archive_status: archived
+archived_at: 2026-06-22
+---
 ```
 
 생성된 파일을 확인한다.

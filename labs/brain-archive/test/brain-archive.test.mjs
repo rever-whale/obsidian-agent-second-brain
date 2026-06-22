@@ -8,6 +8,7 @@ import {
   analyzeVaultGraph,
   applyPlan,
   findSimilarNotes,
+  markDailyNoteArchived,
   parseDailyNote,
   planArchive,
   renderGraphDoctorReport,
@@ -83,6 +84,28 @@ test("applies planned changes to a vault copy", async () => {
 
     const project = await readFile(path.join(vaultRoot, "projects/search-api.md"), "utf8");
     assert.match(project, /Redis miss/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("marks daily note archived after apply", async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), "brain-archive-"));
+  const vaultRoot = path.join(tempRoot, "vault");
+  await cp(fixtureVault, vaultRoot, { recursive: true });
+
+  try {
+    const sourcePath = path.join(vaultRoot, "daily/2026-06-19.md");
+    const state = await markDailyNoteArchived({
+      sourcePath,
+      archivedAt: new Date("2026-06-22T00:00:00.000Z")
+    });
+    const markdown = await readFile(sourcePath, "utf8");
+
+    assert.equal(state.archiveStatus, "archived");
+    assert.equal(state.archivedAt, "2026-06-22");
+    assert.match(markdown, /archive_status: archived/);
+    assert.match(markdown, /archived_at: 2026-06-22/);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

@@ -7,6 +7,7 @@ import {
   analyzeVaultGraph,
   applyPlan,
   findSimilarNotes,
+  markDailyNoteArchived,
   parseDailyNote,
   planArchive,
   renderGraphDoctorReport,
@@ -92,11 +93,17 @@ async function handleApi(request, response) {
   if (url.pathname === "/api/archive/apply") {
     const context = await archiveContext(body);
     const changed = await applyPlan(context);
+    const archiveState = await markDailyNoteArchived({ sourcePath: context.sourcePath });
     send(response, 200, {
       ok: true,
-      summary: `Applied ${changed.length} change(s).`,
+      summary: `Applied ${changed.length} change(s); daily note marked archived.`,
       changed,
-      output: [`Applied ${changed.length} change(s):`, ...changed.map((file) => `- ${file}`)].join("\n")
+      archiveState,
+      output: [
+        `Applied ${changed.length} change(s):`,
+        ...changed.map((file) => `- ${file}`),
+        `Daily note status: ${archiveState.archiveStatus} (${archiveState.archivedAt})`
+      ].join("\n")
     });
     return;
   }
@@ -145,7 +152,7 @@ async function archiveContext(body) {
   const markdown = await readFile(sourcePath, "utf8");
   const sections = parseDailyNote(markdown);
   const actions = planArchive({ sections, sourcePath, vaultRoot });
-  return { actions, vaultRoot };
+  return { actions, sourcePath, vaultRoot };
 }
 
 async function bootstrapVault(body) {
