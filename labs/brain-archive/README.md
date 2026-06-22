@@ -16,6 +16,7 @@ Daily Note
 
 ```bash
 npm test
+npm run dashboard
 node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fixtures/vault --dry-run
 node src/brain-archive.mjs archive fixtures/vault/daily/2026-06-19.md --vault fixtures/vault --json
 node src/brain-archive.mjs graph doctor --vault fixtures/vault
@@ -27,6 +28,25 @@ node src/brain-archive.mjs search similar fixtures/vault/notes/frontend/react-qu
 `--apply`를 붙이면 계획된 파일 변경을 실제 vault에 반영한다. 기본값은 dry-run이다.
 `graph doctor`는 read-only 명령이다. Markdown 파일을 훑어 wikilink를 해석하고, orphan note, broken link, hub 후보를 리포트한다.
 `search similar`도 read-only 명령이다. 외부 embedding 없이 토큰 벡터와 cosine similarity로 유사 노트 후보를 찾는다.
+
+## Dashboard
+
+CLI를 매번 직접 실행하기 번거로울 때는 dashboard를 띄운다.
+
+```bash
+npm run dashboard
+```
+
+브라우저에서 `http://127.0.0.1:8787`을 열면 다음 작업을 버튼으로 실행할 수 있다.
+
+- sandbox vault bootstrap
+- archive dry-run
+- archive apply
+- graph doctor
+- similar note search
+- archive report 작성
+
+각 실행 결과는 Latest Output과 Run Log에 함께 쌓인다.
 
 ## 범위
 

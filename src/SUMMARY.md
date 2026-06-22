@@ -28,6 +28,10 @@
 - [13. GitHub, Slack, Notion Ingest 확장](./13_external_ingest_extensions.md)
 - [14. 사례 연구: 개발자의 하루를 아카이빙하기](./14_case_study_developer_day.md)
 
+# Part 5. 그대로 따라하기
+
+- [15. 빈 Vault에서 첫 Archive까지](./15_how_to_first_archive.md)
+
 # Appendices
 
 - [A. CLI와 Vault 템플릿](./appendix_a_cli_and_vault_templates.md)

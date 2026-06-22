@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Brain Archive Dashboard</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace" aria-label="Brain Archive controls">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">brain-archive lab</p>
+            <h1>Archive Dashboard</h1>
+          </div>
+          <div class="status" id="status">Idle</div>
+        </header>
+
+        <section class="panel setup-panel" aria-label="Vault setup">
+          <div class="field-grid">
+            <label>
+              <span>Vault</span>
+              <input id="vault" value="sandbox-vault" spellcheck="false">
+            </label>
+            <label>
+              <span>Date</span>
+              <input id="date" value="2026-06-22" spellcheck="false">
+            </label>
+            <label class="wide">
+              <span>Daily Note</span>
+              <input id="daily" value="sandbox-vault/daily/2026-06-22.md" spellcheck="false">
+            </label>
+            <label class="wide">
+              <span>Similar Note</span>
+              <input id="note" value="sandbox-vault/notes/frontend/react-query-invalidation.md" spellcheck="false">
+            </label>
+          </div>
+        </section>
+
+        <section class="toolbar" aria-label="Archive actions">
+          <button data-action="bootstrap" title="Create sandbox vault folders and templates">Bootstrap</button>
+          <button data-action="dryRun" title="Preview archive diff without writing files">Dry-run</button>
+          <button data-action="apply" title="Apply planned archive changes">Apply</button>
+          <button data-action="graph" title="Check graph health">Graph Doctor</button>
+          <button data-action="similar" title="Find similar notes">Similar</button>
+          <button data-action="report" title="Write archive report">Write Report</button>
+        </section>
+
+        <section class="result-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Latest Output</h2>
+              <button class="ghost" id="copy-output">Copy</button>
+            </div>
+            <pre id="output">Run an action to see results.</pre>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Action Plan</h2>
+              <span id="action-count">0 actions</span>
+            </div>
+            <div id="actions" class="actions-empty">Dry-run to inspect archive actions.</div>
+          </article>
+        </section>
+      </section>
+
+      <aside class="log-panel" aria-label="Run log">
+        <div class="panel-heading">
+          <h2>Run Log</h2>
+          <button class="ghost" id="clear-log">Clear</button>
+        </div>
+        <ol id="log"></ol>
+      </aside>
+    </main>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
