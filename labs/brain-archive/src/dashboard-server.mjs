@@ -93,16 +93,20 @@ async function handleApi(request, response) {
   if (url.pathname === "/api/archive/apply") {
     const context = await archiveContext(body);
     const changed = await applyPlan(context);
-    const archiveState = await markDailyNoteArchived({ sourcePath: context.sourcePath });
+    const archiveState = await markDailyNoteArchived({
+      sourcePath: context.sourcePath,
+      vaultRoot: context.vaultRoot
+    });
     send(response, 200, {
       ok: true,
-      summary: `Applied ${changed.length} change(s); daily note marked archived.`,
+      summary: `Applied ${changed.length} change(s); daily note archived.`,
       changed,
       archiveState,
       output: [
         `Applied ${changed.length} change(s):`,
         ...changed.map((file) => `- ${file}`),
-        `Daily note status: ${archiveState.archiveStatus} (${archiveState.archivedAt})`
+        `Daily note status: ${archiveState.archiveStatus} (${archiveState.archivedAt})`,
+        `Daily note moved to: ${formatRelative(archiveState.archivedPath, context.vaultRoot)}`
       ].join("\n")
     });
     return;
@@ -148,11 +152,28 @@ async function handleApi(request, response) {
 
 async function archiveContext(body) {
   const vaultRoot = resolveFromLab(body.vault || "sandbox-vault");
-  const sourcePath = resolveFromLab(body.daily || defaultDailyNote(body.vault, body.date));
+  const sourcePath = await resolveDashboardDailyPath({
+    vaultRoot,
+    sourcePath: resolveFromLab(body.daily || defaultDailyNote(body.vault, body.date))
+  });
   const markdown = await readFile(sourcePath, "utf8");
   const sections = parseDailyNote(markdown);
   const actions = planArchive({ sections, sourcePath, vaultRoot });
   return { actions, sourcePath, vaultRoot };
+}
+
+async function resolveDashboardDailyPath({ vaultRoot, sourcePath }) {
+  try {
+    await readFile(sourcePath, "utf8");
+    return sourcePath;
+  } catch {
+    const relativePath = formatRelative(sourcePath, vaultRoot);
+    const archivePath = relativePath.startsWith("daily/")
+      ? path.join(vaultRoot, "archive", "daily", path.basename(sourcePath))
+      : path.join(vaultRoot, "archive", relativePath);
+    await readFile(archivePath, "utf8");
+    return archivePath;
+  }
 }
 
 async function bootstrapVault(body) {
@@ -160,18 +181,22 @@ async function bootstrapVault(body) {
   const vaultRoot = resolveFromLab(body.vault || "sandbox-vault");
   await mkdir(vaultRoot, { recursive: true });
   for (const directory of [
-    "inbox",
+    "inbox/manual-review",
     "daily",
     "notes/frontend",
     "notes/backend",
     "notes/architecture",
+    "notes/learning",
+    "notes/references",
     "projects",
     "questions",
+    "decisions",
+    "meetings",
     "moc",
     "reviews",
     "reports",
     "templates",
-    "archive"
+    "archive/daily"
   ]) {
     await mkdir(path.join(vaultRoot, directory), { recursive: true });
   }

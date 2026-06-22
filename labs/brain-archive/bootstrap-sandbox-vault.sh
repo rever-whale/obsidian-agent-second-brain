@@ -4,7 +4,7 @@ set -euo pipefail
 VAULT="${1:-sandbox-vault}"
 DATE="${2:-2026-06-22}"
 
-mkdir -p "$VAULT"/{inbox,daily,notes/frontend,notes/backend,notes/architecture,projects,questions,moc,reviews,reports,templates,archive}
+mkdir -p "$VAULT"/{inbox/manual-review,daily,notes/frontend,notes/backend,notes/architecture,notes/learning,notes/references,projects,questions,decisions,meetings,moc,reviews,reports,templates,archive/daily}
 
 cat > "$VAULT/templates/daily.md" <<'EOF'
 ---

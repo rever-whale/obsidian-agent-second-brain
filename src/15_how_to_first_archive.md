@@ -24,7 +24,7 @@ cd obsidian-agent-second-brain/labs/brain-archive
 아래 명령을 그대로 실행한다.
 
 ```bash
-mkdir -p sandbox-vault/{inbox,daily,notes/frontend,notes/backend,notes/architecture,projects,questions,moc,reviews,reports,templates,archive}
+mkdir -p sandbox-vault/{inbox/manual-review,daily,notes/frontend,notes/backend,notes/architecture,notes/learning,notes/references,projects,questions,decisions,meetings,moc,reviews,reports,templates,archive/daily}
 ```
 
 완성된 구조는 이렇게 보면 된다.
@@ -32,21 +32,90 @@ mkdir -p sandbox-vault/{inbox,daily,notes/frontend,notes/backend,notes/architect
 ```text
 sandbox-vault/
   inbox/
+    manual-review/
   daily/
   notes/
     frontend/
     backend/
     architecture/
+    learning/
+    references/
   projects/
   questions/
+  decisions/
+  meetings/
   moc/
   reviews/
   reports/
   templates/
   archive/
+    daily/
 ```
 
 처음에는 폴더가 비어 있어도 괜찮다. 사람이 처음부터 정확한 위치를 고르는 시스템이 아니라, Daily Note에 대충 적고 archive 단계에서 목적지를 제안받는 시스템이기 때문이다.
+
+Daily Note의 heading과 vault 폴더는 1:1 대응이 아니다. heading은 "오늘 적는 입력 타입"이고, 폴더는 "archive 이후 결과물이 놓이는 위치"다.
+
+| Daily Note heading | 주 목적지 | 의미 |
+| --- | --- | --- |
+| `Insight` | `notes/` | 재사용 가능한 concept, pattern, 관찰 노트 |
+| `Learn` | `notes/learning/` 또는 `notes/` | 학습 내용, 기존 concept 확장 후보 |
+| `Project` | `projects/` | 특정 프로젝트의 진행 상황, todo, blocker |
+| `Question` | `questions/` | 아직 답이 없는 질문, research queue 후보 |
+| `Decision` | `decisions/` | `###` 주제별로 분리되는 decision note |
+| `Meeting` | `meetings/` 또는 관련 `projects/` | 회의 로그, action item, 결정 후보 |
+| `Reference` | `notes/references/` | 외부 자료 요약과 출처 |
+| 알 수 없는 heading | `inbox/manual-review/` | Agent가 자동 분류하기 애매해서 사람이 볼 항목 |
+
+반대로 `moc/`, `reviews/`, `reports/`는 Daily Note에서 직접 쓰는 카테고리가 아니다.
+
+- `moc/`: 여러 노트가 쌓인 뒤 사람이 탐색 지도로 정리하거나 Agent가 MOC 후보를 제안할 때 쓴다.
+- `reviews/`: weekly/monthly review처럼 기간 단위로 질문, 프로젝트, 고립 노트, 다음 action을 점검할 때 쓴다.
+- `reports/`: archive 실행 결과, graph doctor 결과, dry-run/apply 결과 요약을 남길 때 쓴다.
+- `inbox/`: 외부 ingest, 빠른 메모, 분류 실패 항목처럼 아직 curated note가 아닌 입력을 잠시 보관한다.
+
+Decision이 특정 프로젝트에 대한 결정이면 `### 프로젝트명 > 결정 주제` 형태로 적는다. 프로젝트를 미리 만들어 둘 필요는 없다. Daily Note에는 먼저 생각나는 대로 `위자드 > MW > fallback 정책`처럼 쓰고, archive 단계에서 lab이 필요한 project index를 만들거나 연결한다.
+
+예를 들어 `### 비즈스페이스 > 내 비즈니스 전체 목록`은 `decisions/비즈스페이스/내-비즈니스-전체-목록.md`로 분리된다. 이때 lab은 `projects/비즈스페이스/index.md`도 함께 만든다. decision note는 이 project index를 `[[projects/비즈스페이스/index|비즈스페이스]]`로 링크한다.
+
+같은 규칙으로 `### 위자드 > MW > sample`은 `decisions/위자드/mw/sample.md`가 되고, 프로젝트 index는 다음처럼 생긴다.
+
+```text
+projects/위자드/index.md
+projects/위자드/mw/index.md
+```
+
+관계는 `parent`와 `hierarchy`를 둘 다 쓰지 않고 `project_hierarchy` 하나로 표현한다.
+
+```yaml
+project:
+  - "[[projects/위자드/index|위자드]]"
+project_hierarchy:
+  - "[[projects/위자드/index|위자드]]"
+  - "[[projects/위자드/mw/index|MW]]"
+```
+
+폴더는 파일을 찾기 쉽게 만들고, `project_hierarchy`는 Obsidian graph에서 프로젝트 관계가 끊기지 않게 만든다.
+
+이미 project index가 있고 정확히 그 프로젝트를 찍고 싶을 때만 Obsidian의 `[[...]]` 자동완성을 쓴다.
+
+```md
+## Decision
+
+### [[projects/위자드/mw/index|MW]] > fallback 정책
+
+- 에러 fallback은 /profiles가 아니라 /dashboard로 보낸다.
+```
+
+이 입력도 같은 hierarchy로 처리된다.
+
+```text
+projects/위자드/index.md
+projects/위자드/mw/index.md
+decisions/위자드/mw/fallback-정책.md
+```
+
+정리하면 처음 쓰는 주제는 그냥 텍스트로 쓰고, 이미 있는 프로젝트를 확실히 고르고 싶을 때만 wikilink 자동완성을 붙인다. Daily Note의 입력 비용을 낮게 유지하고, 분류 정확도는 archive 단계가 책임지는 구조다.
 
 ## Step 2. 템플릿 만들기
 
@@ -113,7 +182,9 @@ EOF
 - `archive_status`: 오늘 노트가 아직 처리되지 않았다는 신호
 - `source`: 나중에 생성된 노트가 어떤 Daily Note에서 왔는지 추적하는 자리. 템플릿에서는 비워 두고, Agent가 만든 노트에는 `[[2026-06-22]]` 같은 값이 들어간다.
 
-`archive_status`는 archive automation의 작은 상태 플래그다. 처음 Daily Note를 만들 때는 `pending`으로 시작한다. `dry-run`은 파일을 쓰지 않으므로 상태를 바꾸지 않는다. `--apply` 또는 dashboard의 `Apply`가 성공하면 lab이 Daily Note frontmatter를 `archive_status: archived`로 바꾸고 `archived_at` 날짜를 추가한다.
+`archive_status`는 archive automation의 작은 상태 플래그다. 처음 Daily Note를 만들 때는 `pending`으로 시작한다. `dry-run`은 파일을 쓰지 않으므로 상태를 바꾸지 않는다. `--apply` 또는 dashboard의 `Apply`가 성공하면 lab이 Daily Note frontmatter를 `archive_status: archived`로 바꾸고 `archived_at` 날짜를 추가한 뒤 `archive/daily/`로 이동한다. 같은 이름의 archived daily가 이미 있으면 덮어쓰지 않고 `2026-06-22-2.md`처럼 suffix를 붙여 보존한다.
+
+같은 Daily Note를 실수로 다시 apply해도 같은 action은 다시 복사하지 않는다. Lab은 대상 노트에 이미 같은 본문이 있는지 확인하고, 이미 반영된 action이면 skip한다.
 
 ## Step 3. 오늘의 Daily Note 쓰기
 
@@ -145,6 +216,24 @@ EOF
 ```
 
 작성 규칙은 단순하다. 제목은 `Insight`, `Project`, `Question`처럼 고정하고, 본문은 자연어로 쓴다. 폴더, 태그, 링크는 지금 고민하지 않는다.
+
+프로젝트가 아직 없으면 먼저 만들지 않는다. Daily Note에 아래처럼 바로 쓴다.
+
+```md
+## Decision
+
+### 위자드 > MW > fallback 정책
+
+- 에러 fallback은 /profiles가 아니라 /dashboard로 보낸다.
+```
+
+그러면 archive 단계에서 `projects/위자드/index.md`, `projects/위자드/mw/index.md`, `decisions/위자드/mw/fallback-정책.md`가 제안된다. 이미 `MW` project index가 있는 것을 알고 있고 자동완성으로 고르고 싶다면 아래처럼 써도 된다.
+
+```md
+### [[projects/위자드/mw/index|MW]] > fallback 정책
+```
+
+둘 중 어느 쪽이든 핵심은 같다. Daily Note를 쓰기 전에 분류 작업을 하지 않는다.
 
 처음에는 아래 세 가지만 써도 충분하다.
 
@@ -243,6 +332,29 @@ archive_status: pending
 
 결정이 회의 중에 나왔더라도 한 번 더 `Decision`에 따로 적는 편이 좋다. 회의록은 시간순 기록이고, decision note는 나중에 "왜 그렇게 했는가"를 찾기 위한 기록이다. 중복처럼 보여도 목적이 다르다.
 
+같은 규칙은 `Question`에도 적용된다. 대주제 태그를 매번 새로 걸 필요는 없다. 아래처럼 `## Question`을 한 번 쓰고, 그 아래에 `###`로 주제를 나누면 archive 단계에서는 각각 별도 question note 후보가 된다.
+
+```md
+## Question
+
+### MSA Aggregate 역할 수행
+
+- 현재 파트너센터 서비스 중, crux gateway api 이외에 다른 api 서버를 호출하는 케이스가 있는가?
+- 그런 경우 어떻게 처리하고 있는가?
+- 서비스 내 기본적인 호출 룰을 어떻게 가져가야 할 것인가?
+
+### 비즈스페이스
+
+- 기존 에러 fallback url이 /profiles였는데, /dashboard로 가야 할까?
+```
+
+이 입력은 하나의 `Question` 파일로 합쳐지지 않고, 다음처럼 두 개의 후보로 분리된다.
+
+```text
+questions/msa-aggregate-역할-수행.md
+questions/비즈스페이스.md
+```
+
 ## Step 4. 먼저 dry-run 실행하기
 
 아직 파일을 쓰지 않고 diff만 본다.
@@ -300,9 +412,10 @@ Applied 3 change(s):
 - projects/search-api.md
 - questions/rsc-cache-scope.md
 Daily note status: archived (2026-06-22)
+Daily note moved to: archive/daily/2026-06-22.md
 ```
 
-이때 원본 Daily Note의 frontmatter도 다음처럼 바뀐다.
+이때 원본 Daily Note는 `daily/2026-06-22.md`에서 `archive/daily/2026-06-22.md`로 이동하고, frontmatter도 다음처럼 바뀐다.
 
 ```yaml
 ---
@@ -452,7 +565,7 @@ set -euo pipefail
 VAULT="${1:-sandbox-vault}"
 DATE="${2:-2026-06-22}"
 
-mkdir -p "$VAULT"/{inbox,daily,notes/frontend,notes/backend,notes/architecture,projects,questions,moc,reviews,reports,templates,archive}
+mkdir -p "$VAULT"/{inbox/manual-review,daily,notes/frontend,notes/backend,notes/architecture,notes/learning,notes/references,projects,questions,decisions,meetings,moc,reviews,reports,templates,archive/daily}
 
 cat > "$VAULT/templates/daily.md" <<'EOF'
 ---

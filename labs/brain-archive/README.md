@@ -48,11 +48,39 @@ npm run dashboard
 
 각 실행 결과는 Latest Output과 Run Log에 함께 쌓인다.
 
+## Daily Note project 입력 규칙
+
+프로젝트를 Daily Note 작성 전에 미리 만들 필요는 없다. 처음 쓰는 주제는 텍스트로 바로 적는다.
+
+```md
+## Decision
+
+### 위자드 > MW > fallback 정책
+
+- 에러 fallback은 /profiles가 아니라 /dashboard로 보낸다.
+```
+
+archive 단계에서는 위 입력을 다음 구조로 해석한다.
+
+```text
+projects/위자드/index.md
+projects/위자드/mw/index.md
+decisions/위자드/mw/fallback-정책.md
+```
+
+이미 project index가 있고 Obsidian 자동완성으로 정확히 고르고 싶을 때만 wikilink를 쓴다.
+
+```md
+### [[projects/위자드/mw/index|MW]] > fallback 정책
+```
+
+두 방식은 같은 project hierarchy로 처리된다.
+
 ## 범위
 
 이 lab은 production-ready 도구가 아니다. 의도적으로 다음 여섯 가지만 다룬다.
 
-- Daily Note의 H2 section 추출
+- Daily Note의 H2 section과 H3 topic 추출
 - heading 기반 action planning
 - 생성/append diff 출력
 - apply 후 파일 생성 또는 append

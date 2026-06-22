@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SECTION_HEADING = /^##\s+(.+?)\s*$/;
+const TOPIC_HEADING = /^###\s+(.+?)\s*$/;
 const WIKILINK = /!?\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 const STOP_WORDS = new Set([
   "and",
@@ -31,14 +32,14 @@ export function parseDailyNote(markdown) {
   for (const line of lines) {
     const match = line.match(SECTION_HEADING);
     if (match) {
-      if (current) sections.push(finalizeSection(current));
+      if (current) sections.push(...finalizeSection(current));
       current = { heading: match[1].trim(), lines: [] };
       continue;
     }
     if (current) current.lines.push(line);
   }
 
-  if (current) sections.push(finalizeSection(current));
+  if (current) sections.push(...finalizeSection(current));
   return sections.filter((section) => section.text.length > 0);
 }
 
@@ -51,8 +52,11 @@ export function planArchive({ sections, sourcePath, vaultRoot }) {
       kind,
       source: normalizePath(path.relative(vaultRoot, sourcePath)),
       sourceHeading: section.heading,
+      sourceTopic: section.topic ?? "",
       target,
       title: titleForSection(section, kind),
+      relatedProject: relatedProjectForSection(section, kind),
+      projectHierarchy: projectHierarchyForSection(section, kind),
       risk: riskForKind(kind),
       confidence: confidenceForSection(section, kind),
       text: section.text
@@ -72,7 +76,9 @@ export async function renderPlanDiff({ actions, vaultRoot }) {
       existing = "";
     }
 
-    if (existing) {
+    if (existing && hasAppliedAction(existing, action)) {
+      chunks.push(renderAlreadyAppliedDiff(action));
+    } else if (existing) {
       chunks.push(renderAppendDiff(action, existing));
     } else {
       chunks.push(renderCreateDiff(action));
@@ -84,6 +90,8 @@ export async function renderPlanDiff({ actions, vaultRoot }) {
 export async function applyPlan({ actions, vaultRoot }) {
   const changed = [];
   for (const action of actions) {
+    changed.push(...await ensureProjectIndexNotes({ action, vaultRoot }));
+
     const targetPath = path.join(vaultRoot, action.target);
     await mkdir(path.dirname(targetPath), { recursive: true });
 
@@ -92,6 +100,10 @@ export async function applyPlan({ actions, vaultRoot }) {
       existing = await readFile(targetPath, "utf8");
     } catch {
       existing = "";
+    }
+
+    if (existing && hasAppliedAction(existing, action)) {
+      continue;
     }
 
     const addition = renderActionMarkdown(action);
@@ -104,16 +116,22 @@ export async function applyPlan({ actions, vaultRoot }) {
   return changed;
 }
 
-export async function markDailyNoteArchived({ sourcePath, archivedAt = new Date() }) {
+export async function markDailyNoteArchived({ sourcePath, vaultRoot, archivedAt = new Date() }) {
   const markdown = await readFile(sourcePath, "utf8");
   const archivedDate = archivedAt.toISOString().slice(0, 10);
   const next = updateFrontmatter(markdown, {
     archive_status: "archived",
     archived_at: archivedDate
   });
-  await writeFile(sourcePath, next, "utf8");
+  const archivedPath = await nextAvailablePath(archivePathForDailyNote({ sourcePath, vaultRoot }));
+  await mkdir(path.dirname(archivedPath), { recursive: true });
+  await writeFile(archivedPath, next, "utf8");
+  if (path.resolve(archivedPath) !== path.resolve(sourcePath)) {
+    await unlink(sourcePath);
+  }
   return {
     source: normalizePath(sourcePath),
+    archivedPath: normalizePath(archivedPath),
     archiveStatus: "archived",
     archivedAt: archivedDate
   };
@@ -287,7 +305,10 @@ async function main(argv) {
 
   const options = parseOptions(rest);
   const vaultRoot = path.resolve(options.vault ?? ".");
-  const sourcePath = path.resolve(dailyPath);
+  const sourcePath = await resolveDailyNotePath({
+    sourcePath: path.resolve(dailyPath),
+    vaultRoot
+  });
   const markdown = await readFile(sourcePath, "utf8");
   const sections = parseDailyNote(markdown);
   const actions = planArchive({ sections, sourcePath, vaultRoot });
@@ -299,10 +320,11 @@ async function main(argv) {
 
   if (options.apply) {
     const changed = await applyPlan({ actions, vaultRoot });
-    const archiveState = await markDailyNoteArchived({ sourcePath });
+    const archiveState = await markDailyNoteArchived({ sourcePath, vaultRoot });
     process.stdout.write(`Applied ${changed.length} change(s):\n`);
     for (const file of changed) process.stdout.write(`- ${file}\n`);
     process.stdout.write(`Daily note status: ${archiveState.archiveStatus} (${archiveState.archivedAt})\n`);
+    process.stdout.write(`Daily note moved to: ${normalizePath(path.relative(vaultRoot, archiveState.archivedPath))}\n`);
     return 0;
   }
 
@@ -426,9 +448,44 @@ function cosineSimilarity(left, right) {
 }
 
 function finalizeSection(section) {
+  const topics = [];
+  const intro = [];
+  let current = null;
+
+  for (const line of section.lines) {
+    const match = line.match(TOPIC_HEADING);
+    if (match) {
+      if (current) topics.push(finalizeTopic(section.heading, current));
+      current = { topic: match[1].trim(), lines: [] };
+      continue;
+    }
+
+    if (current) {
+      current.lines.push(line);
+    } else {
+      intro.push(line);
+    }
+  }
+
+  if (current) topics.push(finalizeTopic(section.heading, current));
+
+  const introText = intro.join("\n").trim();
+  if (topics.length === 0) {
+    return [{ heading: section.heading, text: introText }];
+  }
+
+  if (introText.length > 0) {
+    return [{ heading: section.heading, text: introText }, ...topics];
+  }
+
+  return topics;
+}
+
+function finalizeTopic(parentHeading, topic) {
   return {
-    heading: section.heading,
-    text: section.lines.join("\n").trim()
+    heading: parentHeading,
+    topic: topic.topic,
+    text: topic.lines.join("\n").trim()
   };
 }
 
@@ -446,30 +503,52 @@ function classifySection(heading) {
 
 function targetForSection(section, kind) {
   const text = section.text.toLowerCase();
+  const subject = sectionSubject(section);
+  if (kind === "manual_review") return `inbox/manual-review/${subjectPath(subject)}.md`;
   if (kind === "append_project") {
     if (text.includes("search api") || section.text.includes("검색 API")) {
       return "projects/search-api.md";
     }
-    return `projects/${slugify(firstMeaningfulLine(section.text))}.md`;
+    return projectIndexPathForParts(parseSubject(subject).pathParts);
   }
   if (kind === "create_question") {
     if (text.includes("server component") || text.includes("rsc")) {
       return "questions/rsc-cache-scope.md";
     }
-    return `questions/${slugify(firstMeaningfulLine(section.text))}.md`;
+    return `questions/${subjectPath(subject)}.md`;
   }
-  if (kind === "append_decision") return "decisions/decision-log.md";
-  if (kind === "create_meeting_note") return `meetings/${slugify(firstMeaningfulLine(section.text))}.md`;
-  if (kind === "create_reference_note") return `notes/references/${slugify(firstMeaningfulLine(section.text))}.md`;
+  if (kind === "append_decision") return `decisions/${subjectPath(subject)}.md`;
+  if (kind === "create_meeting_note") return `meetings/${subjectPath(subject)}.md`;
+  if (kind === "create_learning_note") return `notes/learning/${subjectPath(subject)}.md`;
+  if (kind === "create_reference_note") return `notes/references/${subjectPath(subject)}.md`;
   if (section.text.includes("React Query")) return "notes/frontend/react-query-invalidation.md";
-  return `notes/${slugify(firstMeaningfulLine(section.text))}.md`;
+  return `notes/${subjectPath(subject)}.md`;
 }
 
 function titleForSection(section, kind) {
   if (section.text.includes("React Query")) return "React Query Invalidation";
   if (kind === "append_project" && section.text.includes("검색 API")) return "Search API";
   if (kind === "create_question" && section.text.includes("Server Component")) return "RSC Cache Scope";
-  return toTitle(firstMeaningfulLine(section.text));
+  return toTitle(parseSubject(sectionSubject(section)).segments.join(" > "));
+}
+
+function sectionSubject(section) {
+  return section.topic || firstMeaningfulLine(section.text);
+}
+
+function relatedProjectForSection(section, kind) {
+  const hierarchy = projectHierarchyForSection(section, kind);
+  return hierarchy[0]?.label ?? "";
+}
+
+function projectHierarchyForSection(section, kind) {
+  if (!["append_decision", "append_project"].includes(kind)) return [];
+  const parsed = parseSubject(sectionSubject(section));
+  if (kind === "append_project" && parsed.segments.length < 2 && parsed.linkedProjectDepth === 0) return [];
+  const projectDepth = kind === "append_decision"
+    ? Math.max(parsed.linkedProjectDepth, parsed.segments.length - 1)
+    : parsed.segments.length;
+  return projectEntriesForParsedSubject(parsed, projectDepth);
 }
 
 function riskForKind(kind) {
@@ -511,6 +590,17 @@ function renderAppendDiff(action, existing) {
   ].join("\n");
 }
 
+function renderAlreadyAppliedDiff(action) {
+  return [
+    `diff --git a/${action.target} b/${action.target}`,
+    `--- a/${action.target}`,
+    `+++ b/${action.target}`,
+    "@@",
+    `# already applied: ${action.source} ${action.sourceHeading}${action.sourceTopic ? ` / ${action.sourceTopic}` : ""}`,
+    ""
+  ].join("\n");
+}
+
 function renderNewNote(action) {
   return [
     "---",
@@ -518,6 +608,8 @@ function renderNewNote(action) {
     "status: active",
     "source:",
     `  - "[[${sourceBasename(action.source)}]]"`,
+    ...renderProjectProperty(action),
+    ...renderHierarchyProperties(action),
     "---",
     "",
     `# ${action.title}`,
@@ -548,15 +640,153 @@ function renderActionMarkdown(action) {
       "- 필요하면 외부 source를 조사한다."
     ].join("\n");
   }
+  if (action.kind === "append_decision") {
+    return [
+      "## Decision",
+      "",
+      `Source: [[${sourceBasename(action.source)}]]`,
+      ...renderProjectLines(action),
+      ...renderHierarchyLines(action),
+      "",
+      action.text
+    ].join("\n");
+  }
   return [
     "## Observation",
     "",
-    action.text,
-    "",
-    "## Related",
-    "",
-    "- [[Review Queue]]"
+    action.text
   ].join("\n");
+}
+
+function renderProjectProperty(action) {
+  if (!action.relatedProject) return [];
+  const project = action.projectHierarchy?.[0];
+  const link = project ? wikilink(project) : `[[${action.relatedProject}]]`;
+  return [
+    "project:",
+    `  - "${link}"`
+  ];
+}
+
+function renderProjectLines(action) {
+  if (!action.relatedProject) return [];
+  const project = action.projectHierarchy?.[0];
+  const link = project ? wikilink(project) : `[[${action.relatedProject}]]`;
+  return [
+    `Project: ${link}`
+  ];
+}
+
+function renderHierarchyProperties(action) {
+  if (!action.projectHierarchy || action.projectHierarchy.length === 0) return [];
+  return [
+    "project_hierarchy:",
+    ...action.projectHierarchy.map((item) => `  - "${wikilink(item)}"`)
+  ];
+}
+
+function renderHierarchyLines(action) {
+  if (!action.projectHierarchy || action.projectHierarchy.length === 0) return [];
+  return [
+    `Project Hierarchy: ${action.projectHierarchy.map((item) => wikilink(item)).join(" > ")}`
+  ];
+}
+
+async function ensureProjectIndexNotes({ action, vaultRoot }) {
+  if (!action.projectHierarchy || action.projectHierarchy.length === 0) return [];
+  const changed = [];
+
+  for (const entry of action.projectHierarchy) {
+    const targetPath = path.join(vaultRoot, entry.path);
+    try {
+      await readFile(targetPath, "utf8");
+      continue;
+    } catch {
+      await mkdir(path.dirname(targetPath), { recursive: true });
+      await writeFile(targetPath, renderProjectIndexNote({ entry, hierarchy: action.projectHierarchy }), "utf8");
+      changed.push(entry.path);
+    }
+  }
+
+  return changed;
+}
+
+function renderProjectIndexNote({ entry, hierarchy }) {
+  const currentIndex = hierarchy.findIndex((item) => item.path === entry.path);
+  const visibleHierarchy = currentIndex >= 0 ? hierarchy.slice(0, currentIndex + 1) : [entry];
+  return [
+    "---",
+    "type: project",
+    "status: active",
+    "project_hierarchy:",
+    ...visibleHierarchy.map((item) => `  - "${wikilink(item)}"`),
+    "---",
+    "",
+    `# ${entry.label}`,
+    "",
+    "## Project Index",
+    "",
+    `Hierarchy: ${visibleHierarchy.map((item) => wikilink(item)).join(" > ")}`,
+    ""
+  ].join("\n");
+}
+
+function wikilink(entry) {
+  return `[[${entry.path.replace(/\.md$/, "")}|${entry.label}]]`;
+}
+
+function hasAppliedAction(markdown, action) {
+  return normalizeForComparison(markdown).includes(normalizeForComparison(action.text));
+}
+
+function normalizeForComparison(text) {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim();
+}
+
+async function resolveDailyNotePath({ sourcePath, vaultRoot }) {
+  try {
+    await readFile(sourcePath, "utf8");
+    return sourcePath;
+  } catch {
+    const archivedPath = archivePathForDailyNote({ sourcePath, vaultRoot });
+    await readFile(archivedPath, "utf8");
+    return archivedPath;
+  }
+}
+
+function archivePathForDailyNote({ sourcePath, vaultRoot }) {
+  if (!vaultRoot) return sourcePath;
+
+  const vaultPath = path.resolve(vaultRoot);
+  const relativePath = normalizePath(path.relative(vaultPath, path.resolve(sourcePath)));
+  if (relativePath.startsWith("..")) return sourcePath;
+  if (relativePath.startsWith("archive/")) return sourcePath;
+  if (relativePath.startsWith("daily/")) {
+    return path.join(vaultPath, "archive", "daily", path.basename(sourcePath));
+  }
+  return path.join(vaultPath, "archive", relativePath);
+}
+
+async function nextAvailablePath(targetPath) {
+  try {
+    await readFile(targetPath, "utf8");
+  } catch {
+    return targetPath;
+  }
+
+  const directory = path.dirname(targetPath);
+  const extension = path.extname(targetPath);
+  const baseName = path.basename(targetPath, extension);
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = path.join(directory, `${baseName}-${index}${extension}`);
+    try {
+      await readFile(candidate, "utf8");
+    } catch {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Could not find available archive path for ${targetPath}`);
 }
 
 function noteTypeForAction(kind) {
@@ -614,11 +844,85 @@ function firstMeaningfulLine(text) {
 
 function slugify(text) {
   return text
-    .normalize("NFKD")
+    .normalize("NFKC")
     .replace(/[^\p{Letter}\p{Number}]+/gu, "-")
     .replace(/^-+|-+$/g, "")
     .toLowerCase()
     .slice(0, 80) || "untitled";
+}
+
+function subjectPath(subject) {
+  const parts = parseSubject(subject).pathParts;
+
+  if (parts.length === 0) return "untitled";
+  const fileName = parts.pop();
+  return [...parts, fileName].join("/");
+}
+
+function projectIndexPathForParts(parts) {
+  if (parts.length === 0) return "projects/untitled/index.md";
+  return `projects/${parts.join("/")}/index.md`;
+}
+
+function subjectSegments(subject) {
+  return subject.split(/\s*>\s*/).map((part) => part.trim()).filter(Boolean);
+}
+
+function parseSubject(subject) {
+  const trimmed = subject.trim();
+  const link = trimmed.match(/^!?\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\](?:\s*>\s*(.*))?$/);
+  if (!link) {
+    const segments = subjectSegments(trimmed);
+    return {
+      segments,
+      pathParts: segments.map((part) => slugify(part)).filter(Boolean),
+      linkedProjectDepth: 0
+    };
+  }
+
+  const project = parseProjectLink(link[1], link[2]);
+  if (!project) {
+    const segments = subjectSegments(trimmed.replace(WIKILINK, (_, target) => target));
+    return {
+      segments,
+      pathParts: segments.map((part) => slugify(part)).filter(Boolean),
+      linkedProjectDepth: 0
+    };
+  }
+
+  const tailSegments = subjectSegments(link[3] ?? "");
+  return {
+    segments: [...project.labels, ...tailSegments],
+    pathParts: [...project.pathParts, ...tailSegments.map((part) => slugify(part)).filter(Boolean)],
+    linkedProjectDepth: project.labels.length
+  };
+}
+
+function parseProjectLink(target, alias = "") {
+  const normalizedTarget = normalizePath(target.trim()).replace(/\.md$/, "");
+  const parts = normalizedTarget.split("/").filter(Boolean);
+  if (parts[0] !== "projects") return null;
+
+  const projectParts = parts.slice(1);
+  if (projectParts.at(-1) === "index") projectParts.pop();
+  if (projectParts.length === 0) return null;
+
+  const labels = projectParts.map((part, index) => {
+    if (index === projectParts.length - 1 && alias.trim()) return alias.trim();
+    return part;
+  });
+
+  return {
+    labels,
+    pathParts: projectParts
+  };
+}
+
+function projectEntriesForParsedSubject(parsed, depth) {
+  return parsed.segments.slice(0, depth).map((label, index) => ({
+    label,
+    path: projectIndexPathForParts(parsed.pathParts.slice(0, index + 1))
+  }));
 }
 
 function toTitle(text) {
