@@ -48,6 +48,28 @@ npm run dashboard
 
 각 실행 결과는 Latest Output과 Run Log에 함께 쌓인다.
 
+## Obsidian Plugin MVP
+
+Obsidian 안에서 같은 흐름을 쓰고 싶으면 MVP plugin을 설치한다.
+
+```bash
+mkdir -p ../../../.obsidian/plugins/brain-archive
+cp obsidian-plugin/{manifest.json,main.js,styles.css,brain-archive.cjs} ../../../.obsidian/plugins/brain-archive/
+```
+
+study vault 기준으로는 `labs/brain-archive`에서 위 명령을 실행한다. 다른 vault에 설치할 때는 `.obsidian/plugins/brain-archive` 경로만 해당 vault로 바꾼다.
+
+플러그인이 제공하는 기능은 다음과 같다.
+
+- 좌측 ribbon icon으로 Archive Dashboard 열기
+- Command Palette에서 Bootstrap, Dry-run, Apply, Graph Doctor, Similar, Write Report 실행
+- dashboard 안에서 현재 설정 기준 CLI command preview와 copy 제공
+- plugin setting에서 daily folder, reports folder, similar note 설정
+
+플러그인은 vault root의 파일을 찾지 않고, plugin 폴더 내부의 `brain-archive.cjs`만 require한다. 따라서 다른 vault에 설치할 때도 `main.js`와 `brain-archive.cjs`를 함께 복사해야 한다.
+
+현재 MVP는 기존 lab core를 Obsidian 안에서 호출하는 얇은 shell이다. 이후에는 Obsidian active file, backlinks, properties, approval modal에 맞춘 native UX로 개선한다.
+
 ## Daily Note project 입력 규칙
 
 프로젝트를 Daily Note 작성 전에 미리 만들 필요는 없다. 처음 쓰는 주제는 텍스트로 바로 적는다.
@@ -63,18 +85,40 @@ npm run dashboard
 archive 단계에서는 위 입력을 다음 구조로 해석한다.
 
 ```text
-projects/위자드/index.md
-projects/위자드/mw/index.md
+projects/위자드/위자드.md
+projects/위자드/mw/mw.md
 decisions/위자드/mw/fallback-정책.md
 ```
+
+프로젝트 인덱스는 `index.md`가 아니라 프로젝트 이름을 파일명으로 쓴다. Obsidian에서 링크가 `index`로 보이면 Daily 입력과 backlink가 쉽게 꼬이기 때문이다.
 
 이미 project index가 있고 Obsidian 자동완성으로 정확히 고르고 싶을 때만 wikilink를 쓴다.
 
 ```md
-### [[projects/위자드/mw/index|MW]] > fallback 정책
+### [[projects/위자드/mw/mw|MW]] > fallback 정책
 ```
 
 두 방식은 같은 project hierarchy로 처리된다.
+
+## Daily Note meeting 입력 규칙
+
+회의는 날짜가 문서 정체성에 포함된다. `## Meeting` 아래에 시간과 회의명을 적으면 회의명으로 폴더를 만들고, 파일명에는 Daily Note 날짜와 시간이 들어간다.
+
+```md
+## Meeting
+
+### 13:00 무슨회의
+
+- fallback 정책을 논의했다.
+```
+
+archive 단계에서는 위 입력을 다음 구조로 해석한다.
+
+```text
+meetings/무슨회의/2026-06-23-13-00.md
+```
+
+시간이 없는 `### Saved Search Design Review`는 `meetings/saved-search-design-review/2026-06-23.md`처럼 날짜만 파일명에 들어간다.
 
 ## 범위
 

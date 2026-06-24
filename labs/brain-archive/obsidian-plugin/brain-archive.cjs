@@ -1,7 +1,5 @@
-#!/usr/bin/env node
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+const { mkdir, readFile, readdir, unlink, writeFile } = require("fs/promises");
+const path = require("path");
 
 const SECTION_HEADING = /^##\s+(.+?)\s*$/;
 const TOPIC_HEADING = /^###\s+(.+?)\s*$/;
@@ -23,7 +21,7 @@ const STOP_WORDS = new Set([
   "type"
 ]);
 
-export function parseDailyNote(markdown) {
+function parseDailyNote(markdown) {
   const body = stripFrontmatter(markdown);
   const lines = body.split(/\r?\n/);
   const sections = [];
@@ -43,7 +41,7 @@ export function parseDailyNote(markdown) {
   return sections.filter((section) => section.text.length > 0);
 }
 
-export function planArchive({ sections, sourcePath, vaultRoot }) {
+function planArchive({ sections, sourcePath, vaultRoot }) {
   const sourceDate = dateFromPath(sourcePath);
   return sections.map((section, index) => {
     const kind = classifySection(section.heading);
@@ -69,7 +67,7 @@ export function planArchive({ sections, sourcePath, vaultRoot }) {
   });
 }
 
-export async function renderPlanDiff({ actions, vaultRoot }) {
+async function renderPlanDiff({ actions, vaultRoot }) {
   const chunks = [];
   for (const action of actions) {
     const targetPath = path.join(vaultRoot, action.target);
@@ -91,7 +89,7 @@ export async function renderPlanDiff({ actions, vaultRoot }) {
   return chunks.join("\n");
 }
 
-export async function applyPlan({ actions, vaultRoot }) {
+async function applyPlan({ actions, vaultRoot }) {
   const changed = [];
   for (const action of actions) {
     changed.push(...await ensureProjectIndexNotes({ action, vaultRoot }));
@@ -120,7 +118,7 @@ export async function applyPlan({ actions, vaultRoot }) {
   return changed;
 }
 
-export async function markDailyNoteArchived({ sourcePath, vaultRoot, archivedAt = new Date() }) {
+async function markDailyNoteArchived({ sourcePath, vaultRoot, archivedAt = new Date() }) {
   const markdown = await readFile(sourcePath, "utf8");
   const archivedDate = archivedAt.toISOString().slice(0, 10);
   const next = updateFrontmatter(markdown, {
@@ -141,7 +139,7 @@ export async function markDailyNoteArchived({ sourcePath, vaultRoot, archivedAt 
   };
 }
 
-export async function analyzeVaultGraph(vaultRoot) {
+async function analyzeVaultGraph(vaultRoot) {
   const files = await listMarkdownFiles(vaultRoot);
   const noteByAlias = new Map();
   for (const file of files) {
@@ -194,7 +192,7 @@ export async function analyzeVaultGraph(vaultRoot) {
   };
 }
 
-export function renderGraphDoctorReport(analysis) {
+function renderGraphDoctorReport(analysis) {
   return [
     "Graph Doctor",
     "",
@@ -214,7 +212,7 @@ export function renderGraphDoctorReport(analysis) {
   ].join("\n");
 }
 
-export async function findSimilarNotes({ vaultRoot, queryPath, queryText, limit = 5 }) {
+async function findSimilarNotes({ vaultRoot, queryPath, queryText, limit = 5 }) {
   if (!queryPath && !queryText) {
     throw new Error("findSimilarNotes requires queryPath or queryText");
   }
@@ -253,7 +251,7 @@ export async function findSimilarNotes({ vaultRoot, queryPath, queryText, limit 
   };
 }
 
-export function renderSimilarNotesReport(result) {
+function renderSimilarNotesReport(result) {
   return [
     "Similar Notes",
     "",
@@ -1029,12 +1027,15 @@ function printUsage() {
   ].join("\n"));
 }
 
-const isCli = fileURLToPath(import.meta.url) === process.argv[1];
-if (isCli) {
-  main(process.argv.slice(2)).then((code) => {
-    process.exitCode = code;
-  }).catch((error) => {
-    process.stderr.write(`${error.stack ?? error.message}\n`);
-    process.exitCode = 1;
-  });
-}
+
+module.exports = {
+  parseDailyNote,
+  planArchive,
+  renderPlanDiff,
+  applyPlan,
+  markDailyNoteArchived,
+  analyzeVaultGraph,
+  renderGraphDoctorReport,
+  findSimilarNotes,
+  renderSimilarNotesReport
+};

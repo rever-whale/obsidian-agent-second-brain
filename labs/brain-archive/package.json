@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dashboard": "node src/dashboard-server.mjs",
+    "plugin:check": "node --check obsidian-plugin/main.js && node --check obsidian-plugin/brain-archive.cjs",
     "test": "node --test test/*.test.mjs"
   }
 }

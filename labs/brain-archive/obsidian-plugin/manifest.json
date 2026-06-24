@@ -1,0 +1,9 @@
+{
+  "id": "brain-archive",
+  "name": "Brain Archive",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Run the brain-archive dashboard and archive commands inside Obsidian.",
+  "author": "rever-whale",
+  "isDesktopOnly": true
+}

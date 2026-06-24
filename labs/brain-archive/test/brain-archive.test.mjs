@@ -107,7 +107,7 @@ test("splits decision topics into separate decision notes", () => {
   assert.equal(actions[0].relatedProject, "비즈스페이스");
   assert.equal(actions[1].relatedProject, "");
   assert.deepEqual(actions[0].projectHierarchy, [
-    { label: "비즈스페이스", path: "projects/비즈스페이스/index.md" }
+    { label: "비즈스페이스", path: "projects/비즈스페이스/비즈스페이스.md" }
   ]);
   assert.ok(!actions[0].text.includes("crux gateway"));
 });
@@ -139,13 +139,13 @@ test("renders decision notes with project links when topic contains a project co
       "utf8"
     );
 
-    const projectIndex = await readFile(path.join(vaultRoot, "projects/비즈스페이스/index.md"), "utf8");
+    const projectIndex = await readFile(path.join(vaultRoot, "projects/비즈스페이스/비즈스페이스.md"), "utf8");
 
-    assert.match(decision, /project:\n  - "\[\[projects\/비즈스페이스\/index\|비즈스페이스\]\]"/);
-    assert.match(decision, /project_hierarchy:\n  - "\[\[projects\/비즈스페이스\/index\|비즈스페이스\]\]"/);
+    assert.match(decision, /project:\n  - "\[\[projects\/비즈스페이스\/비즈스페이스\|비즈스페이스\]\]"/);
+    assert.match(decision, /project_hierarchy:\n  - "\[\[projects\/비즈스페이스\/비즈스페이스\|비즈스페이스\]\]"/);
     assert.doesNotMatch(decision, /parent:/);
-    assert.match(decision, /Project: \[\[projects\/비즈스페이스\/index\|비즈스페이스\]\]/);
-    assert.match(decision, /Project Hierarchy: \[\[projects\/비즈스페이스\/index\|비즈스페이스\]\]/);
+    assert.match(decision, /Project: \[\[projects\/비즈스페이스\/비즈스페이스\|비즈스페이스\]\]/);
+    assert.match(decision, /Project Hierarchy: \[\[projects\/비즈스페이스\/비즈스페이스\|비즈스페이스\]\]/);
     assert.match(projectIndex, /# 비즈스페이스/);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
@@ -171,7 +171,7 @@ test("uses greater-than topic segments as nested target folders", () => {
   assert.equal(actions[0].target, "decisions/위자드/mw.md");
   assert.equal(actions[0].relatedProject, "위자드");
   assert.deepEqual(actions[0].projectHierarchy, [
-    { label: "위자드", path: "projects/위자드/index.md" }
+    { label: "위자드", path: "projects/위자드/위자드.md" }
   ]);
 });
 
@@ -198,21 +198,46 @@ test("renders hierarchy links for nested topic paths", async () => {
 
     await applyPlan({ actions, vaultRoot });
     const decision = await readFile(path.join(vaultRoot, "decisions/위자드/mw/sample.md"), "utf8");
-    const wizardIndex = await readFile(path.join(vaultRoot, "projects/위자드/index.md"), "utf8");
-    const mwIndex = await readFile(path.join(vaultRoot, "projects/위자드/mw/index.md"), "utf8");
+    const wizardIndex = await readFile(path.join(vaultRoot, "projects/위자드/위자드.md"), "utf8");
+    const mwIndex = await readFile(path.join(vaultRoot, "projects/위자드/mw/mw.md"), "utf8");
 
     assert.doesNotMatch(decision, /parent:/);
-    assert.match(decision, /project_hierarchy:\n  - "\[\[projects\/위자드\/index\|위자드\]\]"\n  - "\[\[projects\/위자드\/mw\/index\|MW\]\]"/);
-    assert.match(decision, /Project Hierarchy: \[\[projects\/위자드\/index\|위자드\]\] > \[\[projects\/위자드\/mw\/index\|MW\]\]/);
+    assert.match(decision, /project_hierarchy:\n  - "\[\[projects\/위자드\/위자드\|위자드\]\]"\n  - "\[\[projects\/위자드\/mw\/mw\|MW\]\]"/);
+    assert.match(decision, /Project Hierarchy: \[\[projects\/위자드\/위자드\|위자드\]\] > \[\[projects\/위자드\/mw\/mw\|MW\]\]/);
     assert.match(wizardIndex, /# 위자드/);
     assert.match(mwIndex, /# MW/);
-    assert.match(mwIndex, /Hierarchy: \[\[projects\/위자드\/index\|위자드\]\] > \[\[projects\/위자드\/mw\/index\|MW\]\]/);
+    assert.match(mwIndex, /Hierarchy: \[\[projects\/위자드\/위자드\|위자드\]\] > \[\[projects\/위자드\/mw\/mw\|MW\]\]/);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
 test("uses linked project headings as optional autocomplete hints", () => {
+  const markdown = `# 2026-06-22
+
+## Decision
+
+### [[projects/위자드/mw/mw|MW]] > fallback 정책
+
+- fallback은 MW 하위 정책으로 관리한다.
+`;
+
+  const actions = planArchive({
+    sections: parseDailyNote(markdown),
+    sourcePath: path.join(fixtureVault, "daily/2026-06-22.md"),
+    vaultRoot: fixtureVault
+  });
+
+  assert.equal(actions[0].target, "decisions/위자드/mw/fallback-정책.md");
+  assert.equal(actions[0].relatedProject, "위자드");
+  assert.equal(actions[0].title, "위자드 > MW > fallback 정책");
+  assert.deepEqual(actions[0].projectHierarchy, [
+    { label: "위자드", path: "projects/위자드/위자드.md" },
+    { label: "MW", path: "projects/위자드/mw/mw.md" }
+  ]);
+});
+
+test("keeps old project index links compatible without creating index-index paths", () => {
   const markdown = `# 2026-06-22
 
 ## Decision
@@ -229,12 +254,34 @@ test("uses linked project headings as optional autocomplete hints", () => {
   });
 
   assert.equal(actions[0].target, "decisions/위자드/mw/fallback-정책.md");
-  assert.equal(actions[0].relatedProject, "위자드");
-  assert.equal(actions[0].title, "위자드 > MW > fallback 정책");
   assert.deepEqual(actions[0].projectHierarchy, [
-    { label: "위자드", path: "projects/위자드/index.md" },
-    { label: "MW", path: "projects/위자드/mw/index.md" }
+    { label: "위자드", path: "projects/위자드/위자드.md" },
+    { label: "MW", path: "projects/위자드/mw/mw.md" }
   ]);
+  assert.ok(!actions[0].target.includes("index/index"));
+});
+
+test("uses wikilink aliases when Obsidian inserts a short index link", () => {
+  const markdown = `# 2026-06-22
+
+## Decision
+
+### [[index|MW]] > fallback 정책
+
+- fallback은 MW 하위 정책으로 관리한다.
+`;
+
+  const actions = planArchive({
+    sections: parseDailyNote(markdown),
+    sourcePath: path.join(fixtureVault, "daily/2026-06-22.md"),
+    vaultRoot: fixtureVault
+  });
+
+  assert.equal(actions[0].target, "decisions/mw/fallback-정책.md");
+  assert.deepEqual(actions[0].projectHierarchy, [
+    { label: "MW", path: "projects/mw/mw.md" }
+  ]);
+  assert.ok(!actions[0].target.includes("index"));
 });
 
 test("extends an existing linked project hierarchy from daily text", () => {
@@ -242,7 +289,7 @@ test("extends an existing linked project hierarchy from daily text", () => {
 
 ## Decision
 
-### [[projects/위자드/index|위자드]] > MW > fallback 정책
+### [[projects/위자드/위자드|위자드]] > MW > fallback 정책
 
 - fallback은 MW 하위 정책으로 관리한다.
 `;
@@ -255,8 +302,8 @@ test("extends an existing linked project hierarchy from daily text", () => {
 
   assert.equal(actions[0].target, "decisions/위자드/mw/fallback-정책.md");
   assert.deepEqual(actions[0].projectHierarchy, [
-    { label: "위자드", path: "projects/위자드/index.md" },
-    { label: "MW", path: "projects/위자드/mw/index.md" }
+    { label: "위자드", path: "projects/위자드/위자드.md" },
+    { label: "MW", path: "projects/위자드/mw/mw.md" }
   ]);
 });
 
@@ -265,7 +312,7 @@ test("uses linked project headings for project index notes", () => {
 
 ## Project
 
-### [[projects/위자드/index|위자드]] > MW
+### [[projects/위자드/위자드|위자드]] > MW
 
 - MW 하위 프로젝트를 시작한다.
 `;
@@ -276,11 +323,84 @@ test("uses linked project headings for project index notes", () => {
     vaultRoot: fixtureVault
   });
 
-  assert.equal(actions[0].target, "projects/위자드/mw/index.md");
+  assert.equal(actions[0].target, "projects/위자드/mw/mw.md");
   assert.deepEqual(actions[0].projectHierarchy, [
-    { label: "위자드", path: "projects/위자드/index.md" },
-    { label: "MW", path: "projects/위자드/mw/index.md" }
+    { label: "위자드", path: "projects/위자드/위자드.md" },
+    { label: "MW", path: "projects/위자드/mw/mw.md" }
   ]);
+});
+
+test("routes timed meeting topics under meeting category with date in filename", async () => {
+  const tempRoot = await mkdtemp(path.join(tmpdir(), "brain-archive-"));
+  const vaultRoot = path.join(tempRoot, "vault");
+  await cp(fixtureVault, vaultRoot, { recursive: true });
+
+  try {
+    const sourcePath = path.join(vaultRoot, "daily/2026-06-23.md");
+    const markdown = `# 2026-06-23
+
+## Meeting
+
+### 13:00 무슨회의
+
+- fallback 정책을 논의했다.
+- 다음 액션은 dashboard redirect 확인.
+`;
+    const actions = planArchive({
+      sections: parseDailyNote(markdown),
+      sourcePath,
+      vaultRoot
+    });
+
+    assert.equal(actions[0].kind, "create_meeting_note");
+    assert.equal(actions[0].target, "meetings/무슨회의/2026-06-23-13-00.md");
+    assert.equal(actions[0].title, "2026-06-23 13:00 무슨회의");
+    assert.deepEqual(actions[0].meeting, {
+      date: "2026-06-23",
+      time: "13:00",
+      timeSlug: "13-00",
+      category: "무슨회의",
+      title: "2026-06-23 13:00 무슨회의"
+    });
+
+    await applyPlan({ actions, vaultRoot });
+    const meeting = await readFile(path.join(vaultRoot, "meetings/무슨회의/2026-06-23-13-00.md"), "utf8");
+
+    assert.match(meeting, /# 2026-06-23 13:00 무슨회의/);
+    assert.match(meeting, /meeting_date: 2026-06-23/);
+    assert.match(meeting, /meeting_time: 13:00/);
+    assert.match(meeting, /meeting_category: "무슨회의"/);
+    assert.match(meeting, /## Meeting Notes/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("routes untimed meeting topics under category with date filename", () => {
+  const markdown = `# 2026-06-23
+
+## Meeting
+
+### Saved Search Design Review
+
+- email-only scope로 정리했다.
+`;
+
+  const actions = planArchive({
+    sections: parseDailyNote(markdown),
+    sourcePath: path.join(fixtureVault, "daily/2026-06-23.md"),
+    vaultRoot: fixtureVault
+  });
+
+  assert.equal(actions[0].target, "meetings/saved-search-design-review/2026-06-23.md");
+  assert.equal(actions[0].title, "2026-06-23 Saved Search Design Review");
+  assert.deepEqual(actions[0].meeting, {
+    date: "2026-06-23",
+    time: "",
+    timeSlug: "",
+    category: "Saved Search Design Review",
+    title: "2026-06-23 Saved Search Design Review"
+  });
 });
 
 test("routes unknown headings to manual review inbox", () => {
